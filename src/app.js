@@ -13,6 +13,10 @@ const { errorHandler } = require("./middleware/errorHandler");
 
 const app = express();
 
+if (process.env.VERCEL) {
+  app.set("trust proxy", 1);
+}
+
 const isDev = env.nodeEnv !== "production";
 const corsAllowList = String(env.corsOrigin)
   .split(",")

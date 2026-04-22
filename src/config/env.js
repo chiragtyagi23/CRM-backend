@@ -5,10 +5,24 @@ const required = (key, value) => {
   return value;
 };
 
+function buildDatabaseUrl() {
+  const direct = process.env.DATABASE_URL?.trim();
+  if (direct) return direct;
+  const host = process.env.PGHOST?.trim();
+  const database = process.env.PGDATABASE?.trim();
+  const user = process.env.PGUSER?.trim();
+  const password = process.env.PGPASSWORD ?? "";
+  const port = process.env.PGPORT?.trim() ? Number(process.env.PGPORT) : 5432;
+  if (host && database && user) {
+    return `postgres://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}:${port}/${database}`;
+  }
+  return null;
+}
+
 const env = {
   nodeEnv: process.env.NODE_ENV || "development",
   port: Number(process.env.PORT || 4000),
-  databaseUrl: process.env.DATABASE_URL || null,
+  databaseUrl: buildDatabaseUrl(),
   pg: {
     host: process.env.PGHOST || null,
     port: process.env.PGPORT ? Number(process.env.PGPORT) : null,
