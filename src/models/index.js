@@ -304,6 +304,7 @@ const CaptureLead = sequelize.define(
     status: { type: DataTypes.TEXT, allowNull: true },
     propertyBuyingStage: { type: DataTypes.TEXT, allowNull: true, field: "property_buying_stage" },
     callbackDate: { type: DataTypes.DATE, allowNull: true, field: "callback_date" },
+    callbackTime: { type: DataTypes.TEXT, allowNull: true, field: "callback_time" },
   },
   {
     tableName: "capture_leads",

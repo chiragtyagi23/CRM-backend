@@ -27,13 +27,24 @@ function parseDateOrNull(input) {
   return null;
 }
 
+function parseTimeStringOrNull(input) {
+  if (input === undefined || input === null) return null;
+  if (typeof input !== "string") return null;
+  const raw = input.trim();
+  if (!raw) return null;
+  // HTML time: "HH:mm" or "HH:mm:ss"
+  if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(raw)) return raw;
+  return null;
+}
+
 function normalizePayload(body) {
   const payload = body && typeof body === "object" ? { ...body } : {};
 
-  // Prevent Postgres "Invalid date" by coercing to Date/null.
-  payload.firstCallDate = parseDateOrNull(payload.firstCallDate);
-  payload.callbackDate = parseDateOrNull(payload.callbackDate);
-  payload.possessionDate = parseDateOrNull(payload.possessionDate);
+  // Only touch keys present on the body so PATCH does not clear omitted columns.
+  if ("firstCallDate" in payload) payload.firstCallDate = parseDateOrNull(payload.firstCallDate);
+  if ("callbackDate" in payload) payload.callbackDate = parseDateOrNull(payload.callbackDate);
+  if ("possessionDate" in payload) payload.possessionDate = parseDateOrNull(payload.possessionDate);
+  if ("callbackTime" in payload) payload.callbackTime = parseTimeStringOrNull(payload.callbackTime);
 
   return payload;
 }
@@ -93,6 +104,7 @@ function emptyLeadFields(source) {
     status: null,
     propertyBuyingStage: null,
     callbackDate: null,
+    callbackTime: null,
   };
 }
 

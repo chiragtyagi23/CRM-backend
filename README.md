@@ -35,7 +35,7 @@ Source of truth for tables and columns is `sql/schema.sql`. Sequelize models liv
    - `NODE_ENV` — `production`
    - `JWT_SECRET` — set a strong random value in production (defaults to a dev placeholder if unset).
 
-3. **Migrations**: run `npm run migrate` (or apply `sql/schema.sql`) against the same database from your machine or CI; Vercel does not run migrations automatically unless you add a build step.
+3. **Migrations**: run `npm run migrate` (or apply `sql/schema.sql`) against the same database from your machine or CI; Vercel does not run migrations automatically unless you add a build step. Example: `20260421120000-add-callback-time-to-capture-leads.js` adds `capture_leads.callback_time` (CRM callback time).
 
 4. **Build**: default `npm install` is enough (no separate build command required).
 
