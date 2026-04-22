@@ -14,23 +14,14 @@ npm run dev
 
 API listens on `http://localhost:4000` by default (see `PORT` in `.env`).
 
+## API docs (Swagger)
+
+With the server running:
+
+- **Swagger UI:** [http://localhost:4000/api/docs](http://localhost:4000/api/docs)
+- **OpenAPI JSON:** [http://localhost:4000/api/openapi.json](http://localhost:4000/api/openapi.json)
+
 ## Schema
 
 Source of truth for tables and columns is `sql/schema.sql`. Sequelize models live in `src/models/index.js` and map to those tables.
 
-## Endpoints (campaigns)
-
-- `GET /api/campaigns`
-- `GET /api/campaigns/:id`
-- `POST /api/campaigns`
-- `PATCH /api/campaigns/:id`
-- `DELETE /api/campaigns/:id`
-- `PUT /api/campaigns/:id/hero`
-- `PUT /api/campaigns/:id/overview`
-- `PUT /api/campaigns/:id/gallery`
-- `PUT /api/campaigns/:id/floorplans`
-- `PUT /api/campaigns/:id/amenities`
-- `PUT /api/campaigns/:id/benefits`
-- `PUT /api/campaigns/:id/highlights`
-- `PUT /api/campaigns/:id/social-infrastructure`
-- `PUT /api/campaigns/:id/documents`

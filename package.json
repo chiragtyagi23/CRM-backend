@@ -7,7 +7,8 @@
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
     "migrate": "sequelize-cli db:migrate",
-    "migrate:undo": "sequelize-cli db:migrate:undo"
+    "migrate:undo": "sequelize-cli db:migrate:undo",
+    "db:push": "node scripts/db-push.js"
   },
   "keywords": [],
   "author": "",
@@ -25,6 +26,7 @@
     "pg": "^8.20.0",
     "sequelize": "^6.37.5",
     "sharp": "^0.34.5",
+    "swagger-ui-express": "^5.0.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {
