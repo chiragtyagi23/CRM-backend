@@ -99,7 +99,11 @@ const openapi = {
         type: "object",
         properties: {
           message: { type: "string", example: "File uploaded successfully" },
-          url: { type: "string", example: "/uploads/example.jpg" },
+          url: {
+            type: "string",
+            example: "/uploads/example.jpg",
+            description: "Relative `/uploads/...` path when S3 is not configured; absolute HTTPS URL when S3 is enabled.",
+          },
           file: {
             type: "object",
             properties: {
@@ -257,6 +261,15 @@ const openapi = {
       post: {
         tags: ["Uploads"],
         summary: "Upload image (multipart)",
+        parameters: [
+          {
+            name: "draft",
+            in: "query",
+            required: false,
+            schema: { type: "string", enum: ["1"] },
+            description: "If `draft=1`, file stays on API disk only (no S3). Omit for final upload when S3 is configured.",
+          },
+        ],
         requestBody: {
           required: true,
           content: {
@@ -281,6 +294,15 @@ const openapi = {
       post: {
         tags: ["Uploads"],
         summary: "Upload video (multipart)",
+        parameters: [
+          {
+            name: "draft",
+            in: "query",
+            required: false,
+            schema: { type: "string", enum: ["1"] },
+            description: "If `draft=1`, file stays on API disk only (no S3). Omit for final upload when S3 is configured.",
+          },
+        ],
         requestBody: {
           required: true,
           content: {

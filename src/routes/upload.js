@@ -3,6 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const sharp = require("sharp");
 const { uploadImage, uploadVideo } = require("../services/multer");
+const { maybeUploadToS3AndGetUrl } = require("../services/s3Media");
 
 const router = express.Router();
 
@@ -14,7 +15,12 @@ function isTiffFile(file) {
   return mt === "image/tiff" || mt === "image/x-tiff";
 }
 
+function isDraftUpload(req) {
+  return String(req.query?.draft ?? "") === "1";
+}
+
 router.post("/upload", (req, res, next) => {
+  const draft = isDraftUpload(req);
   uploadImage.single("image")(req, res, (err) => {
     if (err) {
       next(err);
@@ -43,28 +49,38 @@ router.post("/upload", (req, res, next) => {
           /* ignore */
         }
 
-        const url = `/uploads/${outName}`;
-        const stat = fs.statSync(outPath);
+        const uploaded = await maybeUploadToS3AndGetUrl({
+          localPath: outPath,
+          filename: outName,
+          contentType: "image/jpeg",
+          skipS3: draft,
+        });
         res.status(201).json({
           message: "File uploaded successfully",
-          url,
+          url: uploaded.url,
           file: {
-            filename: outName,
-            mimetype: "image/jpeg",
-            size: stat.size,
+            filename: uploaded.filename,
+            mimetype: uploaded.mimetype,
+            size: uploaded.size,
           },
         });
         return;
       }
 
-      const url = `/uploads/${req.file.filename}`;
+      const uploaded = await maybeUploadToS3AndGetUrl({
+        localPath: req.file.path,
+        filename: req.file.filename,
+        contentType: req.file.mimetype,
+        size: req.file.size,
+        skipS3: draft,
+      });
       res.status(201).json({
         message: "File uploaded successfully",
-        url,
+        url: uploaded.url,
         file: {
-          filename: req.file.filename,
-          mimetype: req.file.mimetype,
-          size: req.file.size,
+          filename: uploaded.filename,
+          mimetype: uploaded.mimetype,
+          size: uploaded.size,
         },
       });
     })().catch(next);
@@ -72,6 +88,7 @@ router.post("/upload", (req, res, next) => {
 });
 
 router.post("/upload/video", (req, res, next) => {
+  const draft = isDraftUpload(req);
   uploadVideo.single("video")(req, res, (err) => {
     if (err) {
       next(err);
@@ -81,16 +98,24 @@ router.post("/upload/video", (req, res, next) => {
       res.status(400).json({ error: "No file uploaded" });
       return;
     }
-    const url = `/uploads/${req.file.filename}`;
-    res.status(201).json({
-      message: "File uploaded successfully",
-      url,
-      file: {
+    (async () => {
+      const uploaded = await maybeUploadToS3AndGetUrl({
+        localPath: req.file.path,
         filename: req.file.filename,
-        mimetype: req.file.mimetype,
+        contentType: req.file.mimetype,
         size: req.file.size,
-      },
-    });
+        skipS3: draft,
+      });
+      res.status(201).json({
+        message: "File uploaded successfully",
+        url: uploaded.url,
+        file: {
+          filename: uploaded.filename,
+          mimetype: uploaded.mimetype,
+          size: uploaded.size,
+        },
+      });
+    })().catch(next);
   });
 });
 
