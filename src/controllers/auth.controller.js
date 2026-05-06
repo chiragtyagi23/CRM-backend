@@ -22,19 +22,22 @@ const signup = asyncHandler(async (req, res) => {
   if (!name || !email || !password) {
     return res.status(400).json({ error: "name, email, password are required" });
   }
-  const emailNorm = String(email).trim().toLowerCase();
-  const roleNorm = role === "admin" ? "admin" : role === "user" ? "user" : "no-role";
+  const emailNorm = String(email).trim().toLowerCase(); 
 
   const existing = await CrmSignup.findOne({ where: { email: emailNorm } });
   if (existing) return res.status(409).json({ error: "Email already exists" });
 
   const passwordHash = await bcrypt.hash(String(password), 10);
-  const created = await CrmSignup.create({
+  const payload = {
     name: String(name).trim(),
     email: emailNorm,
     passwordHash,
-    role: roleNorm,
-  });
+  };
+  // Omit null/empty role so INSERT leaves role NULL (after nullable migration); otherwise set explicit role.
+  if (role != null && String(role).trim() !== "") {
+    payload.role = String(role).trim();
+  }
+  const created = await CrmSignup.create(payload);
 
   const token = signToken(created);
   res.status(201).json({
