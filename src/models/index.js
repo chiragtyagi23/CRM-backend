@@ -71,7 +71,7 @@ const CampaignDocument = sequelize.define(
     type: { type: DataTypes.TEXT, allowNull: false },
   },
   {
-    tableName: "campaing_document_table",
+    tableName: "campaign_document_table",
     timestamps: true,
     createdAt: "created_at",
     updatedAt: false,
@@ -183,7 +183,7 @@ const CampaignSizeFloor = sequelize.define(
     panels: { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
   },
   {
-    tableName: "campaing_size_floor",
+    tableName: "campaign_size_floor",
     timestamps: true,
     createdAt: "created_at",
     updatedAt: "updated_at",
@@ -201,7 +201,7 @@ const CampaignAmenity = sequelize.define(
     sortOrder: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0, field: "sort_order" },
   },
   {
-    tableName: "campaign_ananities",
+    tableName: "campaign_amenities",
     timestamps: true,
     createdAt: "created_at",
     updatedAt: false,
@@ -339,7 +339,7 @@ const CrmSignup = sequelize.define(
     name: { type: DataTypes.TEXT, allowNull: false },
     email: { type: DataTypes.TEXT, allowNull: false, unique: true },
     passwordHash: { type: DataTypes.TEXT, allowNull: false, field: "password_hash" },
-    role: { type: DataTypes.TEXT, allowNull: false, defaultValue: "no-role" },
+    role: { type: DataTypes.TEXT, allowNull: true,},
   },
   {
     tableName: "crm_signup",

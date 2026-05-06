@@ -62,7 +62,7 @@ BEFORE UPDATE ON campaign_master_table
 FOR EACH ROW
 EXECUTE FUNCTION set_updated_at();
 
-CREATE TABLE IF NOT EXISTS campaing_document_table (
+CREATE TABLE IF NOT EXISTS campaign_document_table (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   campaign_id uuid NOT NULL REFERENCES campaign_master_table(id) ON DELETE CASCADE,
   url text NOT NULL,
@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS campaing_document_table (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS campaing_document_campaign_idx ON campaing_document_table(campaign_id);
+CREATE INDEX IF NOT EXISTS campaign_document_campaign_idx ON campaign_document_table(campaign_id);
 
 -- Template-1 reference: hero.json -> backgroundImages [{src, alt}]
 CREATE TABLE IF NOT EXISTS campaign_banner_data (
@@ -136,7 +136,7 @@ CREATE TABLE IF NOT EXISTS campaign_project_images (
 CREATE INDEX IF NOT EXISTS campaign_project_images_campaign_sort_idx ON campaign_project_images(campaign_id, sort_order);
 
 -- Template-1 reference: floorplans.json -> blueprintImage, defaultTabId, tabs[], panels{}
-CREATE TABLE IF NOT EXISTS campaing_size_floor (
+CREATE TABLE IF NOT EXISTS campaign_size_floor (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   campaign_id uuid NOT NULL UNIQUE REFERENCES campaign_master_table(id) ON DELETE CASCADE,
   section_label text,
@@ -151,14 +151,14 @@ CREATE TABLE IF NOT EXISTS campaing_size_floor (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-DROP TRIGGER IF EXISTS campaign_size_floor_set_updated_at ON campaing_size_floor;
+DROP TRIGGER IF EXISTS campaign_size_floor_set_updated_at ON campaign_size_floor;
 CREATE TRIGGER campaign_size_floor_set_updated_at
-BEFORE UPDATE ON campaing_size_floor
+BEFORE UPDATE ON campaign_size_floor
 FOR EACH ROW
 EXECUTE FUNCTION set_updated_at();
 
 -- Template-1 reference: amenities.json -> items[{icon, name, desc}]
-CREATE TABLE IF NOT EXISTS campaign_ananities (
+CREATE TABLE IF NOT EXISTS campaign_amenities (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   campaign_id uuid NOT NULL REFERENCES campaign_master_table(id) ON DELETE CASCADE,
   icon text,
@@ -168,7 +168,7 @@ CREATE TABLE IF NOT EXISTS campaign_ananities (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS campaign_ananities_campaign_sort_idx ON campaign_ananities(campaign_id, sort_order);
+CREATE INDEX IF NOT EXISTS campaign_amenities_campaign_sort_idx ON campaign_amenities(campaign_id, sort_order);
 
 -- Template-1 reference: benefits.json -> backgroundImages[], items[], stats[]
 CREATE TABLE IF NOT EXISTS campaign_project_benefits (
@@ -229,4 +229,16 @@ CREATE TABLE IF NOT EXISTS campaign_social_infra_item (
 
 CREATE INDEX IF NOT EXISTS campaign_social_infra_item_group_sort_idx
 ON campaign_social_infra_item(group_id, sort_order);
+
+-- Media rows (kind + url), used by CRM campaign editor
+CREATE TABLE IF NOT EXISTS campaign_media (
+  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  campaign_id uuid NOT NULL REFERENCES campaign_master_table(id) ON DELETE CASCADE,
+  kind text NOT NULL,
+  url text NOT NULL,
+  sort_order int NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS campaign_media_campaign_sort_idx ON campaign_media(campaign_id, sort_order);
 
