@@ -284,6 +284,29 @@ const CaptureLead = sequelize.define(
   },
 );
 
+const AcresWebhookLead = sequelize.define(
+  "AcresWebhookLead",
+  {
+    id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
+    leadId: { type: DataTypes.TEXT, allowNull: false, unique: true, field: "lead_id" },
+    propertyId: { type: DataTypes.TEXT, allowNull: true, field: "property_id" },
+    name: { type: DataTypes.TEXT, allowNull: false },
+    phone: { type: DataTypes.TEXT, allowNull: false },
+    email: { type: DataTypes.TEXT, allowNull: true },
+    message: { type: DataTypes.TEXT, allowNull: true },
+    city: { type: DataTypes.TEXT, allowNull: true },
+    propertyType: { type: DataTypes.TEXT, allowNull: true, field: "property_type" },
+    sourceCreatedAt: { type: DataTypes.DATE, allowNull: true, field: "source_created_at" },
+    webhookPayload: { type: DataTypes.JSONB, allowNull: false, defaultValue: {}, field: "webhook_payload" },
+  },
+  {
+    tableName: "acres_webhook_leads",
+    timestamps: true,
+    createdAt: "created_at",
+    updatedAt: "updated_at",
+  },
+);
+
 const SiteVisit = sequelize.define(
   "SiteVisit",
   {
@@ -388,6 +411,7 @@ module.exports = {
   CampaignSocialInfraItem,
   CampaignProjectBenefits,
   CaptureLead,
+  AcresWebhookLead,
   SiteVisit,
   CrmSignup,
   sortCampaignRelations,

@@ -1,8 +1,18 @@
 const { MulterError } = require("multer");
+const { AppError } = require("../lib/AppError");
 
 function errorHandler(err, _req, res, _next) {
   // eslint-disable-next-line no-console
   console.error(err);
+
+  if (err instanceof AppError) {
+    res.status(err.status).json({
+      ok: false,
+      error: err.message,
+      ...(err.details ? { details: err.details } : {}),
+    });
+    return;
+  }
 
   if (err instanceof MulterError) {
     if (err.code === "LIMIT_FILE_SIZE") {
