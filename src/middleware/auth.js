@@ -1,31 +1,52 @@
-const jwt = require("jsonwebtoken");
+const jwt = require('jsonwebtoken');
 
-function getJwtSecret() {
-  return process.env.JWT_SECRET || "dev_secret_change_me";
-}
+const { getJwtSecret } = require('../services/auth.service');
+const { userCanAccessModule } = require('../services/acl.service');
 
+/** @alias authenticateToken */
 function authRequired(req, res, next) {
-  const header = String(req.headers.authorization || "");
-  const token = header.startsWith("Bearer ") ? header.slice("Bearer ".length).trim() : null;
-  if (!token) return res.status(401).json({ error: "Unauthorized" });
+  const header = String(req.headers.authorization || '');
+  const token = header.startsWith('Bearer ') ? header.slice('Bearer '.length).trim() : null;
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
 
   try {
     const payload = jwt.verify(token, getJwtSecret());
     req.user = payload;
     return next();
-  } catch {
-    return res.status(401).json({ error: "Unauthorized" });
+  } catch (err) {
+    if (err.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Session expired', code: 'SESSION_EXPIRED' });
+    }
+    return res.status(401).json({ error: 'Unauthorized' });
   }
 }
 
-function requireRole(role) {
-  return (req, res, next) => {
+const authenticateToken = authRequired;
+
+/**
+ * Require access to a module_key (RBAC). Legacy JWT (crm_signup) bypasses with full access.
+ */
+function requireModuleAccess(moduleKey) {
+  return async (req, res, next) => {
     const u = req.user;
-    if (!u) return res.status(401).json({ error: "Unauthorized" });
-    if (u.role !== role) return res.status(403).json({ error: "Forbidden" });
+    if (!u) return res.status(401).json({ error: 'Unauthorized' });
+
+    if (u.legacy) return next();
+
+    const allowed = await userCanAccessModule(u.sub, moduleKey);
+    if (!allowed) return res.status(403).json({ error: 'Forbidden', moduleKey });
     return next();
   };
 }
 
-module.exports = { authRequired, requireRole };
+function requireRole(roleName) {
+  return (req, res, next) => {
+    const u = req.user;
+    if (!u) return res.status(401).json({ error: 'Unauthorized' });
+    if (u.legacy && u.role === roleName) return next();
+    if (u.role === roleName) return next();
+    return res.status(403).json({ error: 'Forbidden' });
+  };
+}
 
+module.exports = { authRequired, authenticateToken, requireModuleAccess, requireRole };

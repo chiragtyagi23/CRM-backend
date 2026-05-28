@@ -1,0 +1,46 @@
+{
+  "version": 2,
+  "description": "Temporary ACL config for CRM backend testing (all authenticated users have full access)",
+  "defaultRole": null,
+  "superRole": "authenticated",
+  "roles": {
+    "authenticated": {
+      "permissions": ["*"]
+    }
+  },
+  "routePolicies": [
+    { "method": "GET", "path": "/api/auth/users", "anyOf": ["*"] },
+
+    { "method": "GET", "path": "/api/campaigns", "anyOf": ["*"] },
+    { "method": "GET", "path": "/api/campaigns/:id", "anyOf": ["*"] },
+    { "method": "POST", "path": "/api/campaigns/full", "anyOf": ["*"] },
+    { "method": "PUT", "path": "/api/campaigns/:id/full", "anyOf": ["*"] },
+
+    { "method": "GET", "path": "/api/capture-leads", "anyOf": ["*"] },
+    { "method": "GET", "path": "/api/capture-leads/:id", "anyOf": ["*"] },
+    { "method": "POST", "path": "/api/capture-leads", "anyOf": ["*"] },
+    { "method": "PATCH", "path": "/api/capture-leads/:id", "anyOf": ["*"] },
+    { "method": "DELETE", "path": "/api/capture-leads/:id", "anyOf": ["*"] },
+
+    { "method": "GET", "path": "/api/site-visits", "anyOf": ["*"] },
+    { "method": "GET", "path": "/api/site-visits/:id", "anyOf": ["*"] },
+    { "method": "POST", "path": "/api/site-visits", "anyOf": ["*"] },
+    { "method": "PATCH", "path": "/api/site-visits/:id", "anyOf": ["*"] },
+    { "method": "DELETE", "path": "/api/site-visits/:id", "anyOf": ["*"] },
+
+    { "method": "POST", "path": "/api/upload", "anyOf": ["*"] },
+    { "method": "POST", "path": "/api/upload/video", "anyOf": ["*"] },
+
+    { "method": "GET", "path": "/api/webhook/99acres", "anyOf": ["*"] },
+    { "method": "GET", "path": "/api/webhook/99acres/:id", "anyOf": ["*"] },
+    { "method": "POST", "path": "/api/webhook/99acres", "anyOf": ["*"] }
+  ],
+  "permissionCatalog": ["*"],
+  "testUsers": [
+    {
+      "email": "anyuser@crm.local",
+      "role": null,
+      "expectedAccess": "all"
+    }
+  ]
+}

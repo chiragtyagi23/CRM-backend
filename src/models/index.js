@@ -1,9 +1,38 @@
 const { Sequelize, DataTypes } = require("sequelize");
+const pg = require("pg");
 const { env } = require("../config/env");
+
+function postgresDialectOptions() {
+  const url = String(env.databaseUrl || "");
+  if (!url || url.includes("sslmode=disable")) return undefined;
+  const sslOff = process.env.DATABASE_SSL === "0" || process.env.DATABASE_SSL === "false";
+  if (sslOff) return undefined;
+  const sslOn =
+    process.env.DATABASE_SSL === "1" ||
+    process.env.DATABASE_SSL === "true" ||
+    url.includes("sslmode=require") ||
+    /neon\.tech|supabase\.co|pooler\.supabase|azure\.com|amazonaws\.com/i.test(url) ||
+    process.env.VERCEL === "1";
+  if (!sslOn) return undefined;
+  return {
+    ssl: {
+      require: true,
+      rejectUnauthorized: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === "true",
+    },
+  };
+}
+
+if (!env.databaseUrl) {
+  throw new Error(
+    "DATABASE_URL is not set (or set PGHOST, PGDATABASE, PGUSER, and optionally PGPASSWORD, PGPORT).",
+  );
+}
 
 const sequelize = new Sequelize(env.databaseUrl, {
   dialect: "postgres",
+  dialectModule: pg,
   logging: false,
+  dialectOptions: postgresDialectOptions(),
 });
 
 const CampaignMaster = sequelize.define(
@@ -275,6 +304,7 @@ const CaptureLead = sequelize.define(
     status: { type: DataTypes.TEXT, allowNull: true },
     propertyBuyingStage: { type: DataTypes.TEXT, allowNull: true, field: "property_buying_stage" },
     callbackDate: { type: DataTypes.DATE, allowNull: true, field: "callback_date" },
+    callbackTime: { type: DataTypes.TEXT, allowNull: true, field: "callback_time" },
   },
   {
     tableName: "capture_leads",
@@ -332,7 +362,9 @@ const CrmSignup = sequelize.define(
     name: { type: DataTypes.TEXT, allowNull: false },
     email: { type: DataTypes.TEXT, allowNull: false, unique: true },
     passwordHash: { type: DataTypes.TEXT, allowNull: false, field: "password_hash" },
-    role: { type: DataTypes.TEXT, allowNull: true,},
+    role: { type: DataTypes.TEXT, allowNull: true },
+    roleId: { type: DataTypes.UUID, allowNull: true, field: "role_id" },
+    isActive: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true, field: "is_active" },
   },
   {
     tableName: "crm_signup",

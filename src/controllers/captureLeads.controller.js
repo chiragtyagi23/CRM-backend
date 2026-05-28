@@ -1,5 +1,6 @@
 const { asyncHandler } = require("../lib/asyncHandler");
-const { CaptureLead } = require("../models");
+const { validateAllBulkRows } = require("../lib/bulkCaptureLeadsValidation");
+const { CaptureLead, sequelize } = require("../models");
 
 function parseDateOrNull(input) {
   if (input === undefined || input === null) return null;
@@ -26,13 +27,24 @@ function parseDateOrNull(input) {
   return null;
 }
 
+function parseTimeStringOrNull(input) {
+  if (input === undefined || input === null) return null;
+  if (typeof input !== "string") return null;
+  const raw = input.trim();
+  if (!raw) return null;
+  // HTML time: "HH:mm" or "HH:mm:ss"
+  if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(raw)) return raw;
+  return null;
+}
+
 function normalizePayload(body) {
   const payload = body && typeof body === "object" ? { ...body } : {};
 
-  // Prevent Postgres "Invalid date" by coercing to Date/null.
-  payload.firstCallDate = parseDateOrNull(payload.firstCallDate);
-  payload.callbackDate = parseDateOrNull(payload.callbackDate);
-  payload.possessionDate = parseDateOrNull(payload.possessionDate);
+  // Only touch keys present on the body so PATCH does not clear omitted columns.
+  if ("firstCallDate" in payload) payload.firstCallDate = parseDateOrNull(payload.firstCallDate);
+  if ("callbackDate" in payload) payload.callbackDate = parseDateOrNull(payload.callbackDate);
+  if ("possessionDate" in payload) payload.possessionDate = parseDateOrNull(payload.possessionDate);
+  if ("callbackTime" in payload) payload.callbackTime = parseTimeStringOrNull(payload.callbackTime);
 
   return payload;
 }
@@ -72,5 +84,81 @@ const remove = asyncHandler(async (req, res) => {
   res.status(204).end();
 });
 
-module.exports = { getAll, getById, create, patch, remove };
+const BULK_MAX = 500;
+
+function emptyLeadFields(source) {
+  return {
+    source,
+    firstCallDate: null,
+    callBy: null,
+    whatsappNumber: null,
+    bhk: null,
+    budget: null,
+    resiLocation: null,
+    propertyOwnership: null,
+    workLocation: null,
+    workProfile: null,
+    industryType: null,
+    preferredLocation: [],
+    possessionDate: null,
+    status: null,
+    propertyBuyingStage: null,
+    callbackDate: null,
+    callbackTime: null,
+  };
+}
+
+/** POST body: { source: string, leads: [{ name, number, email }] } — same validation as CRM bulk UI; all-or-nothing. */
+const createBulk = asyncHandler(async (req, res) => {
+  const body = req.body && typeof req.body === "object" ? req.body : {};
+  const source = typeof body.source === "string" ? body.source.trim() : "";
+  const leads = body.leads;
+
+  if (!source) {
+    return res.status(400).json({ error: "source is required (e.g. campaign title for reporting)" });
+  }
+  if (!Array.isArray(leads)) {
+    return res.status(400).json({ error: "leads must be an array" });
+  }
+  if (leads.length === 0) {
+    return res.status(400).json({ error: "leads must contain at least one row" });
+  }
+  if (leads.length > BULK_MAX) {
+    return res.status(400).json({ error: `Maximum ${BULK_MAX} leads per request` });
+  }
+
+  const checked = await validateAllBulkRows(leads);
+  if (!checked.ok) {
+    return res.status(400).json({
+      error: "Validation failed",
+      message: `${checked.failures.length} row(s) failed validation; no leads were created.`,
+      failures: checked.failures,
+    });
+  }
+
+  const base = emptyLeadFields(source);
+  const created = await sequelize.transaction(async (t) => {
+    const rows = [];
+    for (const row of checked.rows) {
+      const record = await CaptureLead.create(
+        {
+          ...base,
+          name: row.name,
+          number: row.number,
+          email: row.email || null,
+        },
+        { transaction: t },
+      );
+      rows.push(record);
+    }
+    return rows;
+  });
+
+  res.status(201).json({
+    items: created.map((r) => r.toJSON()),
+    count: created.length,
+  });
+});
+
+module.exports = { getAll, getById, create, patch, remove, createBulk };
 
