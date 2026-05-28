@@ -1,5 +1,6 @@
 const express = require("express");
 const captureLeadsController = require("../controllers/captureLeads.controller");
+const { authRequired, requireRole } = require("../middleware/auth");
 
 const router = express.Router();
 
