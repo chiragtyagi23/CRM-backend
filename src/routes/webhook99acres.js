@@ -5,14 +5,19 @@ const { leadSchema } = require("../validators/webhook99acres.schema");
 
 const router = express.Router();
 
-function verifyApiKey(req, res, next) {
-  const expected =
-    process.env.NINETY_NINE_ACRES_API_KEY || process.env.NINETY_NINE_ACRES_PUSH_KEY;
-  if (!expected) return next();
-  if (String(req.headers["x-api-key"] || "").trim() !== expected) {
-    return res.status(401).json({ ok: false, error: "Invalid or missing x-api-key" });
-  }
-  return next();
+function normalizeIncomingPayload(body) {
+  const leadId = body.lead_id || body.leadId || `${body.Mobile || ""}-${body.Project || ""}-${body.Name || ""}`;
+  return {
+    lead_id: String(leadId || "").trim(),
+    name: body.name ?? body.Name,
+    phone: body.phone ?? body.Mobile,
+    email: body.email ?? body.Email,
+    message: body.message ?? body.remarks,
+    property_id: body.property_id ?? body.Project,
+    city: body.city,
+    property_type: body.property_type,
+    created_at: body.created_at,
+  };
 }
 
 function toLead(row) {
@@ -50,9 +55,9 @@ function leadFields(data, rawPayload) {
 
 router.post(
   "/99acres",
-  verifyApiKey,
   asyncHandler(async (req, res) => {
-    const parsed = leadSchema.safeParse(req.body);
+    const normalized = normalizeIncomingPayload(req.body || {});
+    const parsed = leadSchema.safeParse(normalized);
     if (!parsed.success) {
       return res.status(400).json({
         ok: false,
@@ -88,7 +93,6 @@ router.post(
 
 router.get(
   "/99acres/:id",
-  verifyApiKey,
   asyncHandler(async (req, res) => {
     const row = await AcresWebhookLead.findByPk(req.params.id);
     if (!row) return res.status(404).json({ ok: false, error: "Lead not found" });
@@ -98,7 +102,6 @@ router.get(
 
 router.get(
   "/99acres",
-  verifyApiKey,
   asyncHandler(async (req, res) => {
     const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
     const rows = await AcresWebhookLead.findAll({
