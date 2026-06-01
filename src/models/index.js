@@ -285,6 +285,7 @@ const CaptureLead = sequelize.define(
   "CaptureLead",
   {
     id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
+    campaignId: { type: DataTypes.UUID, allowNull: true, field: "campaign_id" },
     source: { type: DataTypes.TEXT, allowNull: true },
     firstCallDate: { type: DataTypes.DATE, allowNull: true, field: "first_call_date" },
     callBy: { type: DataTypes.TEXT, allowNull: true, field: "call_by" },
@@ -409,6 +410,9 @@ CampaignSocialInfraItem.belongsTo(CampaignSocialInfraGroup, { foreignKey: "group
 
 CampaignMaster.hasOne(CampaignProjectBenefits, { foreignKey: "campaignId", as: "benefits" });
 CampaignProjectBenefits.belongsTo(CampaignMaster, { foreignKey: "campaignId", as: "campaign" });
+
+CampaignMaster.hasMany(CaptureLead, { foreignKey: "campaignId", as: "captureLeads" });
+CaptureLead.belongsTo(CampaignMaster, { foreignKey: "campaignId", as: "campaign" });
 
 function sortCampaignRelations(campaign) {
   if (!campaign) return null;

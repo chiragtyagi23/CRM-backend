@@ -45,12 +45,21 @@ function normalizePayload(body) {
   if ("callbackDate" in payload) payload.callbackDate = parseDateOrNull(payload.callbackDate);
   if ("possessionDate" in payload) payload.possessionDate = parseDateOrNull(payload.possessionDate);
   if ("callbackTime" in payload) payload.callbackTime = parseTimeStringOrNull(payload.callbackTime);
+  if ("campaignId" in payload) {
+    const raw = payload.campaignId;
+    payload.campaignId =
+      raw === undefined || raw === null || String(raw).trim() === "" ? null : String(raw).trim();
+  }
 
   return payload;
 }
 
-const getAll = asyncHandler(async (_req, res) => {
-  const items = await CaptureLead.findAll({ order: [["created_at", "DESC"]] });
+const getAll = asyncHandler(async (req, res) => {
+  const where = {};
+  const campaignId = String(req.query.campaignId || "").trim();
+  if (campaignId) where.campaignId = campaignId;
+
+  const items = await CaptureLead.findAll({ where, order: [["created_at", "DESC"]] });
   res.json({ items });
 });
 
@@ -88,6 +97,7 @@ const BULK_MAX = 500;
 
 function emptyLeadFields(source) {
   return {
+    campaignId: null,
     source,
     firstCallDate: null,
     callBy: null,
