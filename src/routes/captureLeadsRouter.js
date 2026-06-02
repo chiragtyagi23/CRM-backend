@@ -1,17 +1,17 @@
 const express = require("express");
 const captureLeadsController = require("../controllers/captureLeads.controller");
-const { authRequired, requireRole } = require("../middleware/auth");
+const { authRequired, requireModuleAccess, requireRole } = require("../middleware/auth");
 
 const router = express.Router();
 
-router.get("/", captureLeadsController.getAll);
+router.get("/", authRequired, requireModuleAccess("leads"), captureLeadsController.getAll);
 // Must be before GET /:id so "bulk" is not treated as an id.
 router.post("/bulk", authRequired, requireRole("admin"), captureLeadsController.createBulk);
-router.get("/:id", captureLeadsController.getById);
-// Open access for capture leads CRUD.
+router.get("/:id", authRequired, requireModuleAccess("leads"), captureLeadsController.getById);
+// Public for campaign enquiry forms.
 router.post("/", captureLeadsController.create);
-router.patch("/:id", captureLeadsController.patch);
-router.delete("/:id", captureLeadsController.remove);
+router.patch("/:id", authRequired, requireModuleAccess("leads"), captureLeadsController.patch);
+router.delete("/:id", authRequired, requireModuleAccess("leads.delete"), captureLeadsController.remove);
 
 module.exports = { captureLeadsRouter: router };
 

@@ -136,7 +136,6 @@ async function updateUserRole(userId, roleId) {
   const [row] = await sequelize.query(
     `UPDATE crm_signup
      SET role_id = :roleId,
-         role = COALESCE((SELECT name FROM roles WHERE id = :roleId), role),
          updated_at = NOW()
      WHERE id = :userId
      RETURNING id, name, email, role_id, is_active`,

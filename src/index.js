@@ -1,8 +1,9 @@
-require("dotenv").config();
+require('./config/loadEnv');
 
-const { app } = require("./app");
-const { env } = require("./config/env");
-const { sequelize } = require("./models");
+const { app } = require('./app');
+const { env } = require('./config/env');
+const { getCrmLoginUrl } = require('./config/appUrls');
+const { sequelize } = require('./models');
 
 async function start() {
   await sequelize.authenticate();
@@ -12,6 +13,8 @@ async function start() {
   app.listen(env.port, () => {
     // eslint-disable-next-line no-console
     console.log(`CRM API listening on http://localhost:${env.port}`);
+    // eslint-disable-next-line no-console
+    console.log(`[config] Welcome email login URL: ${getCrmLoginUrl()}`);
   });
 }
 

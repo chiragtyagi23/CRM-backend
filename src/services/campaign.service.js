@@ -531,6 +531,13 @@ async function updateCampaignFull(campaignId, payload) {
   return getCampaignById(campaignId);
 }
 
+async function updateCampaignAssignee(campaignId, assignTo) {
+  const row = await CampaignMaster.findByPk(campaignId);
+  if (!row) throw notFound();
+  await row.update({ assignTo: assignTo ?? null });
+  return row.reload();
+}
+
 // async function updateCampaign(id, data) {
 //   const row = await CampaignMaster.findByPk(id);
 //   if (!row) throw notFound();
@@ -771,6 +778,7 @@ module.exports = {
   createCampaign,
   createCampaignFull,
   updateCampaignFull,
+  updateCampaignAssignee,
   // updateCampaign,
   // deleteCampaign,
   // upsertHero,

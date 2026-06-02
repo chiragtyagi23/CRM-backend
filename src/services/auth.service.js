@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 const { findUserByEmail, findUserById, getAccessibleModulesForUser, getUserOverrides } = require('../queries/aclQueries');
+const { buildPermissionsFromAccess } = require('../acl/permissionMap');
 
 function getJwtSecret() {
   return process.env.JWT_SECRET || 'dev_secret_change_me';
@@ -11,6 +12,7 @@ function signToken(user, roleName) {
   return jwt.sign(
     {
       sub: user.id,
+      name: user.name || user.email,
       email: user.email,
       roleId: user.role_id,
       role: roleName,
@@ -44,6 +46,7 @@ async function loginWithRbac(email, password) {
   // User without role_id still logs in but gets no modules (default deny)
   const modules = user.role_id ? await getAccessibleModulesForUser(user.id) : [];
   const overrides = await getUserOverrides(user.id);
+  const permissions = buildPermissionsFromAccess(modules, overrides);
   const token = signToken(user, user.role_name);
 
   return {
@@ -66,6 +69,7 @@ async function loginWithRbac(email, password) {
         effect: o.effect,
         reason: o.reason,
       })),
+      permissions,
     },
   };
 }
@@ -76,6 +80,7 @@ async function getMe(userId) {
 
   const modules = user.role_id ? await getAccessibleModulesForUser(userId) : [];
   const overrides = await getUserOverrides(userId);
+  const permissions = buildPermissionsFromAccess(modules, overrides);
 
   return {
     user: formatUserResponse(user),
@@ -96,6 +101,7 @@ async function getMe(userId) {
         effect: o.effect,
         reason: o.reason,
       })),
+      permissions,
     },
   };
 }

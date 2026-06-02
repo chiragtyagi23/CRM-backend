@@ -11,6 +11,18 @@
  * @param {Array<{ module_key: string, effect: string }>} overrides
  * @returns {Set<string>} allowed module keys
  */
+function expandWithParents(key) {
+  const raw = String(key || '').trim();
+  if (!raw) return [];
+  const out = [raw];
+  const parts = raw.split('.');
+  while (parts.length > 1) {
+    parts.pop();
+    out.push(parts.join('.'));
+  }
+  return out;
+}
+
 function resolveAccessibleModuleKeys(roleModules, overrides) {
   const roleSet = new Set(
     (roleModules || []).map((m) => String(m.module_key || m.moduleKey || '').trim()).filter(Boolean),
@@ -29,10 +41,14 @@ function resolveAccessibleModuleKeys(roleModules, overrides) {
 
   const allowed = new Set();
   for (const key of roleSet) {
-    if (!deny.has(key)) allowed.add(key);
+    for (const k of expandWithParents(key)) {
+      if (!deny.has(k)) allowed.add(k);
+    }
   }
   for (const key of allow) {
-    if (!deny.has(key)) allowed.add(key);
+    for (const k of expandWithParents(key)) {
+      if (!deny.has(k)) allowed.add(k);
+    }
   }
 
   return allowed;

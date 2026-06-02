@@ -32,6 +32,8 @@ Source of truth for tables and columns is `sql/schema.sql`. Sequelize models liv
 
    - `DATABASE_URL` — Postgres connection string (use a hosted DB: Neon, Supabase, RDS, etc.). Vercel’s filesystem is not a database. Prefer a URL that includes `?sslmode=require` for Neon/Supabase. If the URL has no SSL hint, set `DATABASE_SSL=1` on Vercel (omit or use `DATABASE_SSL=0` only if your DB truly has no TLS).
    - `CORS_ORIGIN` — Your CRM frontend origin(s), comma-separated, e.g. `https://your-crm.vercel.app` (required in production; see `src/config/env.js`).
+   - `CRM_APP_URL` — Same as your deployed CRM app URL (no trailing slash). Used in welcome and password-reset emails instead of `localhost`.
+   - `BACKEND_URL` — Public API URL, e.g. `https://crm-backend-ydni.onrender.com` (optional; for reference).
    - `NODE_ENV` — `production`
    - `JWT_SECRET` — set a strong random value in production (defaults to a dev placeholder if unset).
 

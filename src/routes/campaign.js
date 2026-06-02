@@ -1,12 +1,14 @@
 const express = require("express");
 const campaignController = require("../controllers/campaign.controller");
+const { authRequired, requireModuleAccess } = require("../middleware/auth");
 
 const router = express.Router();
 
 router.get("/", campaignController.getAll);
 router.get("/:id", campaignController.getById);
-router.post("/full", campaignController.createFull);
-router.put("/:id/full", campaignController.updateFull);
+router.post("/full", authRequired, requireModuleAccess("campaign.edit"), campaignController.createFull);
+router.put("/:id/full", authRequired, requireModuleAccess("campaign.edit"), campaignController.updateFull);
+router.patch("/:id/assignee", authRequired, requireModuleAccess("campaign.assignto"), campaignController.updateAssignee);
 // router.post("/", campaignController.create);
 // router.patch("/:id", campaignController.patch);
 // router.delete("/:id", campaignController.remove);

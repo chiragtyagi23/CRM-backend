@@ -12,7 +12,7 @@ const openapi = {
   },
   servers: [{ url: "http://localhost:4000", description: "Local (change in Swagger UI for other hosts)" }],
   tags: [
-    { name: "Auth", description: "CRM signup / login / admin users" },
+    { name: "Auth", description: "CRM login / users" },
     { name: "Campaigns", description: "Campaign list and full create/update" },
     { name: "Uploads", description: "Image and video uploads (multipart)" },
     { name: "Capture leads", description: "Lead capture CRUD" },
@@ -24,7 +24,7 @@ const openapi = {
         type: "http",
         scheme: "bearer",
         bearerFormat: "JWT",
-        description: "JWT from POST /api/auth/login or /api/auth/signup",
+        description: "JWT from POST /api/auth/login",
       },
     },
     schemas: {
@@ -126,34 +126,6 @@ const openapi = {
     },
   },
   paths: {
-    "/api/auth/signup": {
-      post: {
-        tags: ["Auth"],
-        summary: "Register CRM user",
-        requestBody: {
-          required: true,
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                required: ["name", "email", "password"],
-                properties: {
-                  name: { type: "string" },
-                  email: { type: "string", format: "email" },
-                  password: { type: "string", format: "password" },
-                  role: { type: "string", enum: ["admin", "user", "no-role"], description: "Defaults to no-role if omitted" },
-                },
-              },
-            },
-          },
-        },
-        responses: {
-          201: { description: "Created", content: { "application/json": { schema: { $ref: "#/components/schemas/AuthTokenResponse" } } } },
-          400: { description: "Missing fields", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
-          409: { description: "Email already exists", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
-        },
-      },
-    },
     "/api/auth/login": {
       post: {
         tags: ["Auth"],
@@ -183,20 +155,44 @@ const openapi = {
     "/api/auth/users": {
       get: {
         tags: ["Auth"],
-        summary: "List CRM users (admin)",
+        summary: "List CRM users",
         security: [{ bearerAuth: [] }],
         parameters: [
           {
             name: "role",
             in: "query",
             schema: { type: "string" },
-            description: "Filter by role (e.g. admin, user, no-role)",
+            description: "Filter by role name",
           },
         ],
         responses: {
           200: { description: "OK", content: { "application/json": { schema: { $ref: "#/components/schemas/CrmUserList" } } } },
           401: { description: "Unauthorized", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
-          403: { description: "Forbidden (not admin)", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+        },
+      },
+      post: {
+        tags: ["Auth"],
+        summary: "Invite CRM user (worker role, credentials emailed)",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["name", "email"],
+                properties: {
+                  name: { type: "string" },
+                  email: { type: "string", format: "email" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          201: { description: "Created", content: { "application/json": { schema: { type: "object", additionalProperties: true } } } },
+          400: { description: "Validation error", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          409: { description: "Email already exists", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
         },
       },
     },

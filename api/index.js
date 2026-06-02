@@ -4,7 +4,7 @@
  *
  * Lazy-load the app so misconfiguration returns JSON instead of an unhandled import crash.
  */
-require("dotenv").config();
+require('../src/config/loadEnv');
 
 // Sequelize loads `pg` dynamically; Vercel's serverless bundle must see a static require here.
 require("pg");

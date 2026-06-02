@@ -1,6 +1,12 @@
 const { asyncHandler } = require("../lib/asyncHandler");
 const { CampaignFullCreateSchema } = require("../validators/campaignFull.schema");
-const { listCampaigns, getCampaignById, createCampaignFull, updateCampaignFull } = require("../services/campaign.service");
+const {
+  listCampaigns,
+  getCampaignById,
+  createCampaignFull,
+  updateCampaignFull,
+  updateCampaignAssignee,
+} = require("../services/campaign.service");
 
 const getAll = asyncHandler(async (_req, res) => {
   const items = await listCampaigns();
@@ -37,10 +43,22 @@ const updateFull = asyncHandler(async (req, res) => {
   res.json(campaign);
 });
 
+const updateAssignee = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const assignToRaw = req.body?.assignTo;
+  const assignTo =
+    typeof assignToRaw === "string" && assignToRaw.trim().length > 0
+      ? assignToRaw.trim()
+      : null;
+  const campaign = await updateCampaignAssignee(id, assignTo);
+  res.json(campaign);
+});
+
 module.exports = {
   getAll,
   getById,
   createFull,
   updateFull,
+  updateAssignee,
 };
 

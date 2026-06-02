@@ -39,6 +39,22 @@ function requireModuleAccess(moduleKey) {
   };
 }
 
+/** Pass if the user has any of the listed module keys (for shared read endpoints). */
+function requireAnyModuleAccess(...moduleKeys) {
+  return async (req, res, next) => {
+    const u = req.user;
+    if (!u) return res.status(401).json({ error: 'Unauthorized' });
+    if (u.legacy) return next();
+
+    for (const moduleKey of moduleKeys) {
+      // eslint-disable-next-line no-await-in-loop
+      const allowed = await userCanAccessModule(u.sub, moduleKey);
+      if (allowed) return next();
+    }
+    return res.status(403).json({ error: 'Forbidden', moduleKeys });
+  };
+}
+
 function requireRole(roleName) {
   return (req, res, next) => {
     const u = req.user;
@@ -49,4 +65,10 @@ function requireRole(roleName) {
   };
 }
 
-module.exports = { authRequired, authenticateToken, requireModuleAccess, requireRole };
+module.exports = {
+  authRequired,
+  authenticateToken,
+  requireModuleAccess,
+  requireAnyModuleAccess,
+  requireRole,
+};

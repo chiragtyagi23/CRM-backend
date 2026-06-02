@@ -1,60 +1,9 @@
-const bcrypt = require('bcryptjs');
-
 const { asyncHandler } = require('../lib/asyncHandler');
-const { CrmSignup } = require('../models');
-const { loginWithRbac, getMe, signToken } = require('../services/auth.service');
+const { loginWithRbac, getMe } = require('../services/auth.service');
 const aclService = require('../services/acl.service');
-
-function isValidEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
-}
-
-function isStrongPassword(password) {
-  const p = String(password || '');
-  return p.length >= 8 && /[a-z]/.test(p) && /[A-Z]/.test(p) && /\d/.test(p) && /[^A-Za-z0-9]/.test(p);
-}
-
-const signup = asyncHandler(async (req, res) => {
-  const { name, email, password, role } = req.body || {};
-
-  if (!name || !email || !password) {
-    return res.status(400).json({ error: 'name, email, password are required' });
-  }
-  if (!isValidEmail(email)) {
-    return res.status(400).json({ error: 'Please enter a valid email address' });
-  }
-  if (!isStrongPassword(password)) {
-    return res.status(400).json({
-      error: 'Password must be at least 8 characters and include uppercase, lowercase, number, and special character',
-    });
-  }
-  const emailNorm = String(email).trim().toLowerCase();
-
-  const existing = await CrmSignup.findOne({ where: { email: emailNorm } });
-  if (existing) return res.status(409).json({ error: 'Email already exists' });
-
-  const passwordHash = await bcrypt.hash(String(password), 10);
-  const payload = {
-    name: String(name).trim(),
-    email: emailNorm,
-    passwordHash,
-    isActive: true,
-  };
-  if (role != null && String(role).trim() !== '') {
-    payload.role = String(role).trim();
-  }
-  const created = await CrmSignup.create(payload);
-
-  const token = signToken(
-    { id: created.id, email: created.email, role_id: created.roleId ?? null, role_name: created.role },
-    created.role,
-  );
-  res.status(201).json({
-    token,
-    user: { id: created.id, name: created.name, email: created.email, role: created.role },
-    access: { modules: [] },
-  });
-});
+const { inviteUser } = require('../services/userInvite.service');
+const { requestPasswordReset, resetPasswordWithToken } = require('../services/passwordReset.service');
+const { isValidEmail } = require('../lib/password');
 
 const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body || {};
@@ -76,29 +25,47 @@ const me = asyncHandler(async (req, res) => {
 const listUsers = asyncHandler(async (req, res) => {
   const role = String((req.query && req.query.role) || '').trim().toLowerCase();
 
-  try {
-    const items = await aclService.listUsers();
-    const filtered = role
-      ? items.filter((u) => String(u.role_name || '').toLowerCase() === role)
-      : items;
-    return res.json({
-      items: filtered.map((u) => ({
-        id: u.id,
-        name: u.name,
-        email: u.email,
-        role: u.role_name,
-      })),
-    });
-  } catch (err) {
-    const where = {};
-    if (role) where.role = role;
-    const legacy = await CrmSignup.findAll({
-      where,
-      order: [['created_at', 'DESC']],
-      attributes: ['id', 'name', 'email', 'role', 'created_at', 'updated_at'],
-    });
-    res.json({ items: legacy });
-  }
+  const items = await aclService.listUsers();
+  const filtered = role
+    ? items.filter((u) => String(u.role_name || '').toLowerCase() === role)
+    : items;
+  res.json({
+    items: filtered.map((u) => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      role: u.role_name,
+      created_at: u.created_at,
+    })),
+  });
 });
 
-module.exports = { signup, login, me, listUsers };
+/** Role list for Profile “New user” (does not require admin_acl). */
+const listRoles = asyncHandler(async (_req, res) => {
+  const items = await aclService.listRoles();
+  res.json({ items });
+});
+
+/** Create user with selected role (or worker default); random password emailed to the user. */
+const createUser = asyncHandler(async (req, res) => {
+  const { name, email, roleId } = req.body || {};
+  const result = await inviteUser({ name, email, roleId });
+  if (result.error) return res.status(result.status || 400).json({ error: result.error });
+  res.status(201).json({ user: result.user, message: 'User created and welcome email sent' });
+});
+
+const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body || {};
+  const result = await requestPasswordReset(email);
+  if (result.error) return res.status(result.status || 400).json({ error: result.error });
+  res.json({ message: result.message });
+});
+
+const resetPassword = asyncHandler(async (req, res) => {
+  const { token, password } = req.body || {};
+  const result = await resetPasswordWithToken(token, password);
+  if (result.error) return res.status(result.status || 400).json({ error: result.error });
+  res.json({ message: result.message });
+});
+
+module.exports = { createUser, login, me, listUsers, listRoles, forgotPassword, resetPassword };

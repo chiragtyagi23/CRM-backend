@@ -40,6 +40,7 @@ const CampaignMaster = sequelize.define(
   {
     id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
     title: { type: DataTypes.TEXT, allowNull: false },
+    assignTo: { type: DataTypes.TEXT, allowNull: true, field: "assign_to" },
     desc: { type: DataTypes.TEXT, allowNull: true, field: "desc" },
     email: DataTypes.TEXT,
     mobile: DataTypes.TEXT,
@@ -363,7 +364,6 @@ const CrmSignup = sequelize.define(
     name: { type: DataTypes.TEXT, allowNull: false },
     email: { type: DataTypes.TEXT, allowNull: false, unique: true },
     passwordHash: { type: DataTypes.TEXT, allowNull: false, field: "password_hash" },
-    role: { type: DataTypes.TEXT, allowNull: true },
     roleId: { type: DataTypes.UUID, allowNull: true, field: "role_id" },
     isActive: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true, field: "is_active" },
   },

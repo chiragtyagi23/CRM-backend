@@ -19,7 +19,7 @@ Run all migrations including `20260525120000-rbac-use-crm-signup` if you already
 | manager@crm.local | Manager@123 | manager |
 | viewer@crm.local | Viewer@123 | viewer (dashboard + profile) |
 
-All authentication and ACL use **`crm_signup`** (`name`, `email`, `password_hash`, `role`, `role_id`, `is_active`).
+All authentication and ACL use **`crm_signup`** (`name`, `email`, `password_hash`, `role_id`, `is_active`). Role names come from the `roles` table via `role_id`.
 
 ## API
 
