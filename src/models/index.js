@@ -286,7 +286,12 @@ const CaptureLead = sequelize.define(
   "CaptureLead",
   {
     id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
-    campaignId: { type: DataTypes.UUID, allowNull: true, field: "campaign_id" },
+    campaignId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      field: "campaign_id",
+      references: { model: "campaign_master_table", key: "id" },
+    },
     source: { type: DataTypes.TEXT, allowNull: true },
     firstCallDate: { type: DataTypes.DATE, allowNull: true, field: "first_call_date" },
     callBy: { type: DataTypes.TEXT, allowNull: true, field: "call_by" },
@@ -313,6 +318,7 @@ const CaptureLead = sequelize.define(
     timestamps: true,
     createdAt: "created_at",
     updatedAt: "updated_at",
+    indexes: [{ fields: ["campaign_id"], name: "capture_leads_campaign_id_idx" }],
   },
 );
 
@@ -343,7 +349,12 @@ const SiteVisit = sequelize.define(
   "SiteVisit",
   {
     id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
-    leadId: { type: DataTypes.UUID, allowNull: false, field: "lead_id" },
+    leadId: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      field: "lead_id",
+      references: { model: "capture_leads", key: "id" },
+    },
     projectId: { type: DataTypes.TEXT, allowNull: false, field: "project_id" },
     date: { type: DataTypes.TEXT, allowNull: false },
     time: { type: DataTypes.TEXT, allowNull: false },
@@ -357,6 +368,102 @@ const SiteVisit = sequelize.define(
   },
 );
 
+const Role = sequelize.define(
+  "Role",
+  {
+    id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
+    name: { type: DataTypes.TEXT, allowNull: false, unique: true },
+    description: { type: DataTypes.TEXT, allowNull: true },
+  },
+  {
+    tableName: "roles",
+    timestamps: true,
+    createdAt: "created_at",
+    updatedAt: "updated_at",
+  },
+);
+
+const Module = sequelize.define(
+  "Module",
+  {
+    id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
+    moduleKey: { type: DataTypes.TEXT, allowNull: false, unique: true, field: "module_key" },
+    name: { type: DataTypes.TEXT, allowNull: false },
+    route: { type: DataTypes.TEXT, allowNull: false },
+    icon: { type: DataTypes.TEXT, allowNull: true },
+    parentId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      field: "parent_id",
+      references: { model: "modules", key: "id" },
+    },
+    sortOrder: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0, field: "sort_order" },
+    isActive: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true, field: "is_active" },
+  },
+  {
+    tableName: "modules",
+    timestamps: true,
+    createdAt: "created_at",
+    updatedAt: "updated_at",
+    indexes: [{ fields: ["parent_id", "sort_order"] }],
+  },
+);
+
+const RoleModule = sequelize.define(
+  "RoleModule",
+  {
+    roleId: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      primaryKey: true,
+      field: "role_id",
+      references: { model: "roles", key: "id" },
+    },
+    moduleId: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      primaryKey: true,
+      field: "module_id",
+      references: { model: "modules", key: "id" },
+    },
+  },
+  {
+    tableName: "role_modules",
+    timestamps: false,
+  },
+);
+
+const UserModuleOverride = sequelize.define(
+  "UserModuleOverride",
+  {
+    id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
+    userId: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      field: "user_id",
+      references: { model: "crm_signup", key: "id" },
+    },
+    moduleId: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      field: "module_id",
+      references: { model: "modules", key: "id" },
+    },
+    effect: { type: DataTypes.TEXT, allowNull: false },
+    reason: { type: DataTypes.TEXT, allowNull: true },
+  },
+  {
+    tableName: "user_module_overrides",
+    timestamps: true,
+    createdAt: "created_at",
+    updatedAt: false,
+    indexes: [
+      { fields: ["user_id"] },
+      { unique: true, fields: ["user_id", "module_id"], name: "user_module_overrides_user_module_unique" },
+    ],
+  },
+);
+
 const CrmSignup = sequelize.define(
   "CrmSignup",
   {
@@ -364,7 +471,12 @@ const CrmSignup = sequelize.define(
     name: { type: DataTypes.TEXT, allowNull: false },
     email: { type: DataTypes.TEXT, allowNull: false, unique: true },
     passwordHash: { type: DataTypes.TEXT, allowNull: false, field: "password_hash" },
-    roleId: { type: DataTypes.UUID, allowNull: true, field: "role_id" },
+    roleId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      field: "role_id",
+      references: { model: "roles", key: "id" },
+    },
     isActive: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true, field: "is_active" },
   },
   {
@@ -372,6 +484,29 @@ const CrmSignup = sequelize.define(
     timestamps: true,
     createdAt: "created_at",
     updatedAt: "updated_at",
+    indexes: [{ fields: ["role_id"] }, { fields: ["is_active"] }],
+  },
+);
+
+const PasswordResetToken = sequelize.define(
+  "PasswordResetToken",
+  {
+    id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
+    userId: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      field: "user_id",
+      references: { model: "crm_signup", key: "id" },
+    },
+    tokenHash: { type: DataTypes.TEXT, allowNull: false, unique: true, field: "token_hash" },
+    expiresAt: { type: DataTypes.DATE, allowNull: false, field: "expires_at" },
+  },
+  {
+    tableName: "password_reset_tokens",
+    timestamps: true,
+    createdAt: "created_at",
+    updatedAt: false,
+    indexes: [{ fields: ["user_id"] }, { fields: ["expires_at"] }],
   },
 );
 
@@ -414,6 +549,42 @@ CampaignProjectBenefits.belongsTo(CampaignMaster, { foreignKey: "campaignId", as
 CampaignMaster.hasMany(CaptureLead, { foreignKey: "campaignId", as: "captureLeads" });
 CaptureLead.belongsTo(CampaignMaster, { foreignKey: "campaignId", as: "campaign" });
 
+CaptureLead.hasMany(SiteVisit, { foreignKey: "leadId", as: "siteVisits" });
+SiteVisit.belongsTo(CaptureLead, { foreignKey: "leadId", as: "lead" });
+
+Role.belongsToMany(Module, {
+  through: RoleModule,
+  foreignKey: "roleId",
+  otherKey: "moduleId",
+  as: "modules",
+});
+Module.belongsToMany(Role, {
+  through: RoleModule,
+  foreignKey: "moduleId",
+  otherKey: "roleId",
+  as: "roles",
+});
+
+Module.hasMany(Module, { foreignKey: "parentId", as: "children" });
+Module.belongsTo(Module, { foreignKey: "parentId", as: "parent" });
+
+Role.hasMany(CrmSignup, { foreignKey: "roleId", as: "users" });
+CrmSignup.belongsTo(Role, { foreignKey: "roleId", as: "role" });
+
+Role.hasMany(RoleModule, { foreignKey: "roleId", as: "roleModules" });
+RoleModule.belongsTo(Role, { foreignKey: "roleId", as: "role" });
+RoleModule.belongsTo(Module, { foreignKey: "moduleId", as: "module" });
+
+Module.hasMany(RoleModule, { foreignKey: "moduleId", as: "roleModules" });
+Module.hasMany(UserModuleOverride, { foreignKey: "moduleId", as: "userOverrides" });
+UserModuleOverride.belongsTo(Module, { foreignKey: "moduleId", as: "module" });
+
+CrmSignup.hasMany(UserModuleOverride, { foreignKey: "userId", as: "moduleOverrides" });
+UserModuleOverride.belongsTo(CrmSignup, { foreignKey: "userId", as: "user" });
+
+CrmSignup.hasMany(PasswordResetToken, { foreignKey: "userId", as: "passwordResetTokens" });
+PasswordResetToken.belongsTo(CrmSignup, { foreignKey: "userId", as: "user" });
+
 function sortCampaignRelations(campaign) {
   if (!campaign) return null;
   const j = typeof campaign.toJSON === "function" ? campaign.toJSON() : { ...campaign };
@@ -449,6 +620,11 @@ module.exports = {
   CaptureLead,
   AcresWebhookLead,
   SiteVisit,
+  Role,
+  Module,
+  RoleModule,
+  UserModuleOverride,
   CrmSignup,
+  PasswordResetToken,
   sortCampaignRelations,
 };
