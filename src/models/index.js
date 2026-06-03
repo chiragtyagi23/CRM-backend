@@ -33,6 +33,12 @@ const sequelize = new Sequelize(env.databaseUrl, {
   dialectModule: pg,
   logging: false,
   dialectOptions: postgresDialectOptions(),
+  pool: {
+    max: 10,
+    min: 0,
+    acquire: 60_000,
+    idle: 10_000,
+  },
 });
 
 const CampaignMaster = sequelize.define(
