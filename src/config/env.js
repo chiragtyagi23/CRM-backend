@@ -36,7 +36,7 @@ const env = {
     region: process.env.AWS_REGION?.trim() || null,
     bucket: process.env.AWS_S3_BUCKET?.trim() || null,
     publicBaseUrl: process.env.AWS_S3_PUBLIC_BASE_URL?.trim()?.replace(/\/+$/, "") || null,
-    keyPrefix: (process.env.AWS_S3_KEY_PREFIX || "media").replace(/^\/+|\/+$/g, ""),
+    keyPrefix: (process.env.AWS_S3_KEY_PREFIX || "magnum/uploads").replace(/^\/+|\/+$/g, ""),
   },
 };
 

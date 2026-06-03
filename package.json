@@ -9,7 +9,8 @@
     "start:render": "npm run db:push && node src/index.js",
     "migrate": "sequelize-cli db:migrate",
     "migrate:undo": "sequelize-cli db:migrate:undo",
-    "db:push": "node scripts/db-push.js"
+    "db:push": "node scripts/db-push.js",
+    "migrate:upload-urls": "node scripts/migrate-upload-urls-to-s3.js"
   },
   "keywords": [],
   "author": "",
