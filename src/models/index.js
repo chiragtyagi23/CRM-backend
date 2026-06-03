@@ -309,6 +309,7 @@ const CaptureLead = sequelize.define(
     preferredLocation: { type: DataTypes.JSONB, allowNull: false, defaultValue: [], field: "preferred_location" },
     possessionDate: { type: DataTypes.DATE, allowNull: true, field: "possession_date" },
     status: { type: DataTypes.TEXT, allowNull: true },
+    leadScore: { type: DataTypes.TEXT, allowNull: true, field: "lead_score" },
     propertyBuyingStage: { type: DataTypes.TEXT, allowNull: true, field: "property_buying_stage" },
     callbackDate: { type: DataTypes.DATE, allowNull: true, field: "callback_date" },
     callbackTime: { type: DataTypes.TEXT, allowNull: true, field: "callback_time" },

@@ -25,6 +25,7 @@ module.exports = {
         preferred_location jsonb NOT NULL DEFAULT '[]'::jsonb,
         possession_date timestamptz,
         status text,
+        lead_score text,
         property_buying_stage text,
         callback_date timestamptz,
         created_at timestamptz NOT NULL DEFAULT now(),

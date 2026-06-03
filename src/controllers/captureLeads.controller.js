@@ -91,6 +91,11 @@ const getById = asyncHandler(async (req, res) => {
 
 const create = asyncHandler(async (req, res) => {
   const payload = normalizePayload(req.body);
+  const temp = String(payload.leadScore ?? payload.status ?? "WARM")
+    .trim()
+    .toUpperCase();
+  if (["HOT", "WARM", "COLD"].includes(temp)) payload.leadScore = temp;
+  payload.status = "NEW";
   const created = await CaptureLead.create(payload);
   res.status(201).json(created);
 });
@@ -130,7 +135,8 @@ function emptyLeadFields(source) {
     industryType: null,
     preferredLocation: [],
     possessionDate: null,
-    status: null,
+    status: 'NEW',
+    leadScore: null,
     propertyBuyingStage: null,
     callbackDate: null,
     callbackTime: null,
