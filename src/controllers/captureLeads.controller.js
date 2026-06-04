@@ -47,6 +47,9 @@ function normalizePayload(body) {
   if ("callbackDate" in payload) payload.callbackDate = parseDateOrNull(payload.callbackDate);
   if ("possessionDate" in payload) payload.possessionDate = parseDateOrNull(payload.possessionDate);
   if ("callbackTime" in payload) payload.callbackTime = parseTimeStringOrNull(payload.callbackTime);
+  if ("activityTimeline" in payload) {
+    payload.activityTimeline = Array.isArray(payload.activityTimeline) ? payload.activityTimeline : [];
+  }
   if ("campaignId" in payload) {
     const raw = payload.campaignId;
     payload.campaignId =
@@ -140,6 +143,7 @@ function emptyLeadFields(source) {
     propertyBuyingStage: null,
     callbackDate: null,
     callbackTime: null,
+    activityTimeline: [],
   };
 }
 

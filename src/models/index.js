@@ -319,6 +319,12 @@ const CaptureLead = sequelize.define(
     propertyBuyingStage: { type: DataTypes.TEXT, allowNull: true, field: "property_buying_stage" },
     callbackDate: { type: DataTypes.DATE, allowNull: true, field: "callback_date" },
     callbackTime: { type: DataTypes.TEXT, allowNull: true, field: "callback_time" },
+    activityTimeline: {
+      type: DataTypes.JSONB,
+      allowNull: false,
+      defaultValue: [],
+      field: "activity_timeline",
+    },
   },
   {
     tableName: "capture_leads",

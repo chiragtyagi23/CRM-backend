@@ -37,6 +37,10 @@ module.exports = {
     await q.query('ALTER TABLE capture_leads ADD COLUMN IF NOT EXISTS callback_time TEXT;');
     await q.query(`
       ALTER TABLE capture_leads
+      ADD COLUMN IF NOT EXISTS activity_timeline JSONB NOT NULL DEFAULT '[]'::jsonb;
+    `);
+    await q.query(`
+      ALTER TABLE capture_leads
         ADD COLUMN IF NOT EXISTS campaign_id uuid
         REFERENCES campaign_master_table(id) ON DELETE SET NULL;
     `);
