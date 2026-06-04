@@ -39,6 +39,19 @@ function parseTimeStringOrNull(input) {
   return null;
 }
 
+function normalizeInterestedProjects(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const projectId = String(item.projectId ?? item.project_id ?? "").trim();
+      const projectName = String(item.projectName ?? item.project_name ?? "").trim();
+      if (!projectId) return null;
+      return { projectId, projectName: projectName || projectId };
+    })
+    .filter(Boolean);
+}
+
 function normalizePayload(body) {
   const payload = body && typeof body === "object" ? { ...body } : {};
 
@@ -49,6 +62,9 @@ function normalizePayload(body) {
   if ("callbackTime" in payload) payload.callbackTime = parseTimeStringOrNull(payload.callbackTime);
   if ("activityTimeline" in payload) {
     payload.activityTimeline = Array.isArray(payload.activityTimeline) ? payload.activityTimeline : [];
+  }
+  if ("interestedProjects" in payload) {
+    payload.interestedProjects = normalizeInterestedProjects(payload.interestedProjects);
   }
   if ("campaignId" in payload) {
     const raw = payload.campaignId;
@@ -144,6 +160,7 @@ function emptyLeadFields(source) {
     callbackDate: null,
     callbackTime: null,
     activityTimeline: [],
+    interestedProjects: [],
   };
 }
 

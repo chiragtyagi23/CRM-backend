@@ -4,9 +4,11 @@ const { app } = require('./app');
 const { env } = require('./config/env');
 const { getCrmLoginUrl } = require('./config/appUrls');
 const { sequelize } = require('./models');
+const { ensureCaptureLeadsSchema } = require('./db/ensureCaptureLeadsSchema');
 
 async function start() {
   await sequelize.authenticate();
+  await ensureCaptureLeadsSchema(sequelize);
   // In migration-based workflow, do not auto-sync schema on boot.
   // Run: `npm run migrate` to apply schema changes.
 

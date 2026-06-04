@@ -11,7 +11,8 @@
     "migrate:undo": "sequelize-cli db:migrate:undo",
     "db:push": "node scripts/db-push.js",
     "migrate:upload-urls": "node scripts/migrate-upload-urls-to-s3.js",
-    "db:ensure-activity-timeline": "node scripts/ensure-activity-timeline-column.js"
+    "db:ensure-activity-timeline": "node scripts/ensure-activity-timeline-column.js",
+    "db:ensure-interested-projects": "node scripts/ensure-interested-projects-column.js"
   },
   "keywords": [],
   "author": "",

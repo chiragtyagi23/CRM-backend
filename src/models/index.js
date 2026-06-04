@@ -325,6 +325,12 @@ const CaptureLead = sequelize.define(
       defaultValue: [],
       field: "activity_timeline",
     },
+    interestedProjects: {
+      type: DataTypes.JSONB,
+      allowNull: false,
+      defaultValue: [],
+      field: "interested_projects",
+    },
   },
   {
     tableName: "capture_leads",
