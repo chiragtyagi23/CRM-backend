@@ -1,6 +1,7 @@
+const { Op } = require("sequelize");
 const { ConnectionError, ForeignKeyConstraintError, ValidationError } = require("sequelize");
 const { asyncHandler } = require("../lib/asyncHandler");
-const { CaptureLead, SiteVisit } = require("../models");
+const { CaptureLead, CampaignMaster, SiteVisit } = require("../models");
 
 function normalizeSiteVisitPayload(body) {
   const raw = body && typeof body === "object" ? body : {};
@@ -34,16 +35,87 @@ async function createSiteVisitRecord(payload) {
   throw lastErr;
 }
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isUuid(value) {
+  return UUID_RE.test(String(value || "").trim());
+}
+
+/** project_id is TEXT — older rows may store demo ids like "p1", not campaign UUIDs. */
+async function loadProjectTitleById(projectIds) {
+  const ids = [...new Set(projectIds.map((id) => String(id || "").trim()).filter(Boolean))];
+  const titleById = new Map();
+
+  for (const id of ids) {
+    if (!isUuid(id)) titleById.set(id, id);
+  }
+
+  const campaignIds = ids.filter(isUuid);
+  if (!campaignIds.length) return titleById;
+
+  const campaigns = await CampaignMaster.findAll({
+    where: { id: { [Op.in]: campaignIds } },
+    attributes: ["id", "title"],
+  });
+
+  for (const c of campaigns) {
+    const j = typeof c.toJSON === "function" ? c.toJSON() : c;
+    titleById.set(String(j.id), String(j.title || "").trim() || String(j.id));
+  }
+
+  return titleById;
+}
+
+function serializeSiteVisit(row, projectTitleById) {
+  const j = typeof row.toJSON === "function" ? row.toJSON() : { ...row };
+  const lead = j.lead || null;
+  const projectId = String(j.projectId || "").trim();
+  const leadName = lead?.name ? String(lead.name).trim() : null;
+  const leadLocation = lead?.resiLocation ? String(lead.resiLocation).trim() : null;
+  const projectName = projectTitleById.get(projectId) || null;
+
+  delete j.lead;
+
+  return {
+    ...j,
+    leadName,
+    leadLocation,
+    projectName,
+  };
+}
+
 const getAll = asyncHandler(async (_req, res) => {
-  const items = await SiteVisit.findAll({ order: [["created_at", "DESC"]] });
+  const rows = await SiteVisit.findAll({
+    order: [["created_at", "DESC"]],
+    include: [
+      {
+        association: "lead",
+        attributes: ["id", "name", "resiLocation"],
+        required: false,
+      },
+    ],
+  });
+
+  const projectTitleById = await loadProjectTitleById(rows.map((r) => r.projectId));
+  const items = rows.map((row) => serializeSiteVisit(row, projectTitleById));
   res.json({ items });
 });
 
 const getById = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const item = await SiteVisit.findByPk(id);
+  const item = await SiteVisit.findByPk(id, {
+    include: [
+      {
+        association: "lead",
+        attributes: ["id", "name", "resiLocation"],
+        required: false,
+      },
+    ],
+  });
   if (!item) return res.status(404).json({ error: "Site visit not found" });
-  res.json(item);
+  const projectTitleById = await loadProjectTitleById([item.projectId]);
+  res.json(serializeSiteVisit(item, projectTitleById));
 });
 
 const create = asyncHandler(async (req, res) => {
@@ -61,7 +133,17 @@ const create = asyncHandler(async (req, res) => {
 
   try {
     const created = await createSiteVisitRecord(payload);
-    res.status(201).json(created);
+    const hydrated = await SiteVisit.findByPk(created.id, {
+      include: [
+        {
+          association: "lead",
+          attributes: ["id", "name", "resiLocation"],
+          required: false,
+        },
+      ],
+    });
+    const projectTitleById = await loadProjectTitleById([payload.projectId]);
+    res.status(201).json(serializeSiteVisit(hydrated || created, projectTitleById));
   } catch (err) {
     if (err instanceof ValidationError) {
       return res.status(400).json({ error: err.message });
@@ -90,7 +172,17 @@ const patch = asyncHandler(async (req, res) => {
         : String(body.notes).trim() || null;
   }
   await item.update(updates);
-  res.json(item);
+  const hydrated = await SiteVisit.findByPk(id, {
+    include: [
+      {
+        association: "lead",
+        attributes: ["id", "name", "resiLocation"],
+        required: false,
+      },
+    ],
+  });
+  const projectTitleById = await loadProjectTitleById([hydrated?.projectId ?? item.projectId]);
+  res.json(serializeSiteVisit(hydrated || item, projectTitleById));
 });
 
 const remove = asyncHandler(async (req, res) => {

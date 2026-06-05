@@ -132,6 +132,17 @@ async function listUsers() {
   );
 }
 
+/** Active users — id + name only (assignee / lead-received-by dropdowns). */
+async function listActiveAssigneeNames() {
+  return sequelize.query(
+    `SELECT u.id, u.name
+     FROM crm_signup u
+     WHERE u.is_active IS DISTINCT FROM false
+     ORDER BY u.name ASC`,
+    { type: QueryTypes.SELECT },
+  );
+}
+
 async function updateUserRole(userId, roleId) {
   const [row] = await sequelize.query(
     `UPDATE crm_signup
@@ -195,6 +206,7 @@ module.exports = {
   getRoleModuleIds,
   setRoleModules,
   listUsers,
+  listActiveAssigneeNames,
   updateUserRole,
   listOverrides,
   createOverride,

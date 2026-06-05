@@ -1,4 +1,5 @@
 const { asyncHandler } = require('../lib/asyncHandler');
+const { MODULE_KEYS } = require('../acl/permissionMap');
 const { loginWithRbac, getMe } = require('../services/auth.service');
 const aclService = require('../services/acl.service');
 const { inviteUser } = require('../services/userInvite.service');
@@ -21,7 +22,34 @@ const me = asyncHandler(async (req, res) => {
   res.json(data);
 });
 
-/** Directory users for dropdowns (crm_signup). */
+/**
+ * Minimal assignee list for capture-lead / lead-reassign dropdowns.
+ * - leads.assignto: all active user names
+ * - capture_lead only: current user only (no full directory leak)
+ */
+const listAssignees = asyncHandler(async (req, res) => {
+  const userId = req.user?.sub;
+  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+  const canAssign = await aclService.userCanAccessModule(userId, MODULE_KEYS.leads.assignTo);
+  if (canAssign) {
+    const rows = await aclService.listActiveAssigneeNames();
+    return res.json({
+      items: rows.map((u) => ({
+        id: u.id,
+        name: String(u.name || '').trim() || u.id,
+      })),
+    });
+  }
+
+  const me = await getMe(userId);
+  if (!me?.user) return res.status(401).json({ error: 'Unauthorized' });
+  return res.json({
+    items: [{ id: me.user.id, name: String(me.user.name || '').trim() || me.user.email }],
+  });
+});
+
+/** Full user directory — Profile admin table only (email, role, etc.). */
 const listUsers = asyncHandler(async (req, res) => {
   const role = String((req.query && req.query.role) || '').trim().toLowerCase();
 
@@ -68,4 +96,13 @@ const resetPassword = asyncHandler(async (req, res) => {
   res.json({ message: result.message });
 });
 
-module.exports = { createUser, login, me, listUsers, listRoles, forgotPassword, resetPassword };
+module.exports = {
+  createUser,
+  login,
+  me,
+  listAssignees,
+  listUsers,
+  listRoles,
+  forgotPassword,
+  resetPassword,
+};
