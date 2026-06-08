@@ -1,4 +1,4 @@
-const { Sequelize, DataTypes } = require("sequelize");
+const { Sequelize, DataTypes, Op } = require("sequelize");
 const pg = require("pg");
 const { env } = require("../config/env");
 
@@ -331,13 +331,26 @@ const CaptureLead = sequelize.define(
       defaultValue: [],
       field: "interested_projects",
     },
+    externalLeadId: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      field: "external_lead_id",
+    },
   },
   {
     tableName: "capture_leads",
     timestamps: true,
     createdAt: "created_at",
     updatedAt: "updated_at",
-    indexes: [{ fields: ["campaign_id"], name: "capture_leads_campaign_id_idx" }],
+    indexes: [
+      { fields: ["campaign_id"], name: "capture_leads_campaign_id_idx" },
+      {
+        unique: true,
+        fields: ["source", "external_lead_id"],
+        name: "capture_leads_source_external_lead_id_unique",
+        where: { external_lead_id: { [Op.ne]: null } },
+      },
+    ],
   },
 );
 

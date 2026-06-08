@@ -1,6 +1,8 @@
 const express = require("express");
+const { UniqueConstraintError } = require("sequelize");
 const { asyncHandler } = require("../lib/asyncHandler");
-const { AcresWebhookLead } = require("../models");
+const { requireWebhookApiKey } = require("../middleware/webhookApiKey");
+const { CaptureLead } = require("../models");
 const { leadSchema } = require("../validators/webhook99acres.schema");
 
 const router = express.Router();
@@ -20,96 +22,100 @@ function normalizeIncomingPayload(body) {
   };
 }
 
-function toLead(row) {
-  const j = row.toJSON();
-  return {
-    id: j.id,
-    lead_id: j.leadId,
-    property_id: j.propertyId,
-    name: j.name,
-    phone: j.phone,
-    email: j.email,
-    message: j.message,
-    city: j.city,
-    property_type: j.propertyType,
-    created_at: j.created_at,
-  };
-}
-
-function leadFields(data, rawPayload) {
+function captureLeadFields(source, data, rawPayload) {
   const sourceCreatedAt = data.created_at ? new Date(data.created_at) : null;
+  const at =
+    sourceCreatedAt && !Number.isNaN(sourceCreatedAt.getTime())
+      ? sourceCreatedAt.toISOString()
+      : new Date().toISOString();
+
   return {
-    leadId: data.lead_id,
-    propertyId: data.property_id,
+    source,
+    externalLeadId: data.lead_id,
     name: data.name,
-    phone: data.phone,
+    number: data.phone,
     email: data.email,
-    message: data.message,
-    city: data.city,
-    propertyType: data.property_type,
-    sourceCreatedAt:
-      sourceCreatedAt && !Number.isNaN(sourceCreatedAt.getTime()) ? sourceCreatedAt : null,
-    webhookPayload: rawPayload,
+    resiLocation: data.city,
+    status: "NEW",
+    leadScore: "WARM",
+    preferredLocation: [],
+    activityTimeline: [
+      {
+        type: "webhook_received",
+        source,
+        at,
+        message: data.message,
+        propertyType: data.property_type,
+        propertyId: data.property_id,
+        city: data.city,
+        payload: rawPayload,
+      },
+    ],
+    interestedProjects: data.property_id
+      ? [{ projectId: String(data.property_id), projectName: String(data.property_id) }]
+      : [],
   };
 }
 
-router.post(
-  "/99acres",
-  asyncHandler(async (req, res) => {
-    const normalized = normalizeIncomingPayload(req.body || {});
-    const parsed = leadSchema.safeParse(normalized);
-    if (!parsed.success) {
-      return res.status(400).json({
-        ok: false,
-        error: "Validation failed",
-        details: parsed.error.flatten().fieldErrors,
-      });
-    }
+function duplicateResponse(existing) {
+  return {
+    ok: true,
+    duplicate: true,
+    id: existing.id,
+    lead_id: existing.externalLeadId,
+    name: existing.name,
+    phone: existing.number,
+  };
+}
 
-    const data = parsed.data;
-    const existing = await AcresWebhookLead.findOne({ where: { leadId: data.lead_id } });
-    if (existing) {
-      return res.status(200).json({
-        ok: true,
-        duplicate: true,
-        id: existing.id,
-        lead_id: existing.leadId,
-        name: existing.name,
-        phone: existing.phone,
-      });
-    }
+function createdResponse(lead) {
+  return {
+    ok: true,
+    duplicate: false,
+    id: lead.id,
+    lead_id: lead.externalLeadId,
+    name: lead.name,
+    phone: lead.number,
+  };
+}
 
-    const lead = await AcresWebhookLead.create(leadFields(data, { ...req.body }));
-    return res.status(201).json({
-      ok: true,
-      duplicate: false,
-      id: lead.id,
-      lead_id: lead.leadId,
-      name: lead.name,
-      phone: lead.phone,
+async function findExistingWebhookLead(source, leadId) {
+  return CaptureLead.findOne({
+    where: { source, externalLeadId: leadId },
+  });
+}
+
+async function handleWebhookLead(req, res, source) {
+  const normalized = normalizeIncomingPayload(req.body || {});
+  const parsed = leadSchema.safeParse(normalized);
+  if (!parsed.success) {
+    return res.status(400).json({
+      ok: false,
+      error: "Validation failed",
+      details: parsed.error.flatten().fieldErrors,
     });
-  }),
-);
+  }
 
-router.get(
-  "/99acres/:id",
-  asyncHandler(async (req, res) => {
-    const row = await AcresWebhookLead.findByPk(req.params.id);
-    if (!row) return res.status(404).json({ ok: false, error: "Lead not found" });
-    return res.json({ ok: true, lead: toLead(row) });
-  }),
-);
+  const data = parsed.data;
+  const existing = await findExistingWebhookLead(source, data.lead_id);
+  if (existing) {
+    return res.status(200).json(duplicateResponse(existing));
+  }
 
-router.get(
-  "/99acres",
-  asyncHandler(async (req, res) => {
-    const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
-    const rows = await AcresWebhookLead.findAll({
-      order: [["created_at", "DESC"]],
-      limit,
-    });
-    return res.json({ ok: true, count: rows.length, items: rows.map(toLead) });
-  }),
-);
+  try {
+    const lead = await CaptureLead.create(captureLeadFields(source, data, { ...req.body }));
+    return res.status(201).json(createdResponse(lead));
+  } catch (err) {
+    if (err instanceof UniqueConstraintError) {
+      const duplicate = await findExistingWebhookLead(source, data.lead_id);
+      if (duplicate) return res.status(200).json(duplicateResponse(duplicate));
+    }
+    throw err;
+  }
+}
+
+router.post("/99acres", requireWebhookApiKey("99acres"), asyncHandler((req, res) => handleWebhookLead(req, res, "99acres")));
+router.post("/housing.com", requireWebhookApiKey("housing"), asyncHandler((req, res) => handleWebhookLead(req, res, "housing")));
+router.post("/magicBricks", requireWebhookApiKey("magicbricks"), asyncHandler((req, res) => handleWebhookLead(req, res, "magicbricks")));
 
 module.exports = { webhook99acresRouter: router };
