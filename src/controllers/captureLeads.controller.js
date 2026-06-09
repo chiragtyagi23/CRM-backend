@@ -109,7 +109,19 @@ const getById = asyncHandler(async (req, res) => {
 });
 
 const create = asyncHandler(async (req, res) => {
-  const payload = normalizePayload(req.body);
+  const body = req.body && typeof req.body === "object" ? { ...req.body } : {};
+
+  // QR form sends id only — resolve to callBy (team member name) for capture_lead.call_by
+  const generatorId = body.userId ?? body.id;
+  if (!body.callBy && generatorId) {
+    const generator = await CrmSignup.findByPk(String(generatorId).trim());
+    const generatorName = String(generator?.name ?? "").trim();
+    if (generatorName) body.callBy = generatorName;
+  }
+  delete body.userId;
+  delete body.id;
+
+  const payload = normalizePayload(body);
   const temp = String(payload.leadScore ?? payload.status ?? "WARM")
     .trim()
     .toUpperCase();
