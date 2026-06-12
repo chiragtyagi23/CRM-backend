@@ -3,26 +3,123 @@ const { getCrmLoginUrl } = require('../config/appUrls');
 
 let cachedTransporter = null;
 
+function normalizeSmtpPass(raw) {
+  return String(raw ?? '').replace(/\s+/g, '').trim();
+}
+
+function isHostedRuntime() {
+  return process.env.NODE_ENV === 'production' || process.env.RENDER === 'true';
+}
+
+function resendConfigured() {
+  return Boolean(process.env.RESEND_API_KEY?.trim());
+}
+
 function smtpConfigured() {
-  return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+  return Boolean(process.env.SMTP_USER?.trim() && normalizeSmtpPass(process.env.SMTP_PASS));
+}
+
+function emailConfigured() {
+  return resendConfigured() || smtpConfigured();
+}
+
+function getDefaultFrom() {
+  return (
+    process.env.EMAIL_FROM?.trim() ||
+    process.env.RESEND_FROM?.trim() ||
+    process.env.SMTP_FROM?.trim() ||
+    process.env.SMTP_USER?.trim() ||
+    'onboarding@resend.dev'
+  );
 }
 
 function getTransporter() {
   if (!smtpConfigured()) return null;
   if (!cachedTransporter) {
+    const host = process.env.SMTP_HOST?.trim() || 'smtp.gmail.com';
+    const port = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 587;
     cachedTransporter = nodemailer.createTransport({
-      service: 'gmail',
+      host,
+      port,
+      secure: port === 465,
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
+        user: process.env.SMTP_USER.trim(),
+        pass: normalizeSmtpPass(process.env.SMTP_PASS),
       },
     });
   }
   return cachedTransporter;
 }
 
+async function sendViaResend({ from, to, subject, text, html }) {
+  const apiKey = process.env.RESEND_API_KEY.trim();
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from,
+      to: [to],
+      subject,
+      html,
+      text,
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Resend API failed (${response.status}): ${body}`);
+  }
+
+  return { sent: true, provider: 'resend' };
+}
+
+async function sendViaSmtp({ from, to, subject, text, html }) {
+  const transporter = getTransporter();
+  if (!transporter) {
+    throw new Error('SMTP is not configured');
+  }
+  await transporter.sendMail({ from, to, subject, text, html });
+  return { sent: true, provider: 'smtp' };
+}
+
+async function deliverEmail({ to, subject, text, html }) {
+  const from = getDefaultFrom();
+
+  if (isHostedRuntime()) {
+    if (resendConfigured()) {
+      return sendViaResend({ from, to, subject, text, html });
+    }
+    throw new Error(
+      'Email on Render requires RESEND_API_KEY (Gmail SMTP ports 587/465 are blocked on Render). ' +
+        'Sign up at https://resend.com and set RESEND_API_KEY + EMAIL_FROM on Render.',
+    );
+  }
+
+  if (resendConfigured()) {
+    return sendViaResend({ from, to, subject, text, html });
+  }
+
+  const transporter = getTransporter();
+  if (!transporter) {
+    console.log('[email] not configured — dev log only:', { to, subject });
+    return { devLogged: true };
+  }
+
+  return sendViaSmtp({ from, to, subject, text, html });
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 async function sendWelcomeUserEmail({ to, name, email, password, loginUrl }) {
-  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
   const subject = 'Your PropCRM account';
   const text = [
     `Hello ${name},`,
@@ -50,30 +147,10 @@ async function sendWelcomeUserEmail({ to, name, email, password, loginUrl }) {
     <p>— PropCRM</p>
   `;
 
-  const transporter = getTransporter();
-  if (!transporter) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('Email service is not configured');
-    }
-    console.log('[email] SMTP not configured — welcome email (dev only):');
-    console.log({ to, name, email, password, loginUrl });
-    return { devLogged: true };
-  }
-
-  await transporter.sendMail({ from, to, subject, text, html });
-  return { sent: true };
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+  return deliverEmail({ to, subject, text, html });
 }
 
 async function sendPasswordResetEmail({ to, name, resetUrl }) {
-  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
   const subject = 'Reset your PropCRM password';
   const text = [
     `Hello ${name},`,
@@ -95,22 +172,10 @@ async function sendPasswordResetEmail({ to, name, resetUrl }) {
     <p>— PropCRM</p>
   `;
 
-  const transporter = getTransporter();
-  if (!transporter) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('Email service is not configured');
-    }
-    console.log('[email] SMTP not configured — password reset (dev only):');
-    console.log({ to, name, resetUrl });
-    return { devLogged: true };
-  }
-
-  await transporter.sendMail({ from, to, subject, text, html });
-  return { sent: true };
+  return deliverEmail({ to, subject, text, html });
 }
 
 async function sendLeadEnquiryThankYouEmail({ to, name, source = '99acres' }) {
-  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
   const brand = process.env.LEAD_EMAIL_BRAND_NAME || 'PropCRM';
   const subject = 'Thank you for your enquiry';
   const text = [
@@ -130,18 +195,7 @@ async function sendLeadEnquiryThankYouEmail({ to, name, source = '99acres' }) {
     <p>— ${escapeHtml(brand)}</p>
   `;
 
-  const transporter = getTransporter();
-  if (!transporter) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('Email service is not configured');
-    }
-    console.log('[email] SMTP not configured — lead enquiry thank-you (dev only):');
-    console.log({ to, name, source });
-    return { devLogged: true };
-  }
-
-  await transporter.sendMail({ from, to, subject, text, html });
-  return { sent: true };
+  return deliverEmail({ to, subject, text, html });
 }
 
 module.exports = {
@@ -150,4 +204,5 @@ module.exports = {
   sendLeadEnquiryThankYouEmail,
   getCrmLoginUrl,
   smtpConfigured,
+  emailConfigured,
 };
