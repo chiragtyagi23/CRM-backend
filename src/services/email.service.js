@@ -109,4 +109,45 @@ async function sendPasswordResetEmail({ to, name, resetUrl }) {
   return { sent: true };
 }
 
-module.exports = { sendWelcomeUserEmail, sendPasswordResetEmail, getCrmLoginUrl, smtpConfigured };
+async function sendLeadEnquiryThankYouEmail({ to, name, source = '99acres' }) {
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+  const brand = process.env.LEAD_EMAIL_BRAND_NAME || 'PropCRM';
+  const subject = 'Thank you for your enquiry';
+  const text = [
+    `Hi ${name},`,
+    '',
+    `Thanks for your enquiry on ${source}.`,
+    '',
+    'Our team will contact you shortly.',
+    '',
+    `— ${brand}`,
+  ].join('\n');
+
+  const html = `
+    <p>Hi ${escapeHtml(name)},</p>
+    <p>Thanks for your enquiry on <strong>${escapeHtml(source)}</strong>.</p>
+    <p>Our team will contact you shortly.</p>
+    <p>— ${escapeHtml(brand)}</p>
+  `;
+
+  const transporter = getTransporter();
+  if (!transporter) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Email service is not configured');
+    }
+    console.log('[email] SMTP not configured — lead enquiry thank-you (dev only):');
+    console.log({ to, name, source });
+    return { devLogged: true };
+  }
+
+  await transporter.sendMail({ from, to, subject, text, html });
+  return { sent: true };
+}
+
+module.exports = {
+  sendWelcomeUserEmail,
+  sendPasswordResetEmail,
+  sendLeadEnquiryThankYouEmail,
+  getCrmLoginUrl,
+  smtpConfigured,
+};

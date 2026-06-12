@@ -3,6 +3,7 @@ const { UniqueConstraintError } = require("sequelize");
 const { asyncHandler } = require("../lib/asyncHandler");
 const { requireWebhookApiKey } = require("../middleware/webhookApiKey");
 const { CaptureLead } = require("../models");
+const { sendLeadEnquiryThankYouEmail } = require("../services/email.service");
 const { leadSchema } = require("../validators/webhook99acres.schema");
 
 const router = express.Router();
@@ -85,6 +86,57 @@ async function findExistingWebhookLead(source, leadId) {
   });
 }
 
+async function appendLeadActivity(leadId, entry) {
+  const lead = await CaptureLead.findByPk(leadId);
+  if (!lead) return;
+  const timeline = Array.isArray(lead.activityTimeline) ? [...lead.activityTimeline] : [];
+  timeline.push(entry);
+  await lead.update({ activityTimeline: timeline });
+}
+
+async function send99acresThankYouEmail(lead) {
+  const email = typeof lead.email === "string" ? lead.email.trim() : "";
+  if (!email) {
+    await appendLeadActivity(lead.id, {
+      type: "email_auto_reply",
+      at: new Date().toISOString(),
+      status: "skipped",
+      reason: "no_email",
+      source: "99acres",
+    });
+    return;
+  }
+
+  try {
+    const result = await sendLeadEnquiryThankYouEmail({
+      to: email,
+      name: lead.name,
+      source: "99acres",
+    });
+    await appendLeadActivity(lead.id, {
+      type: "email_auto_reply",
+      at: new Date().toISOString(),
+      status: result.sent ? "sent" : "dev_logged",
+      to: email,
+      source: "99acres",
+    });
+  } catch (err) {
+    await appendLeadActivity(lead.id, {
+      type: "email_auto_reply",
+      at: new Date().toISOString(),
+      status: "failed",
+      to: email,
+      source: "99acres",
+      error: err && err.message ? String(err.message) : "Send failed",
+    });
+    console.error("[webhook] 99acres thank-you email failed:", err);
+  }
+}
+
+function schedule99acresThankYouEmail(lead) {
+  void send99acresThankYouEmail(lead);
+}
+
 async function handleWebhookLead(req, res, source) {
   const normalized = normalizeIncomingPayload(req.body || {});
   const parsed = leadSchema.safeParse(normalized);
@@ -104,6 +156,9 @@ async function handleWebhookLead(req, res, source) {
 
   try {
     const lead = await CaptureLead.create(captureLeadFields(source, data, { ...req.body }));
+    if (source === "99acres") {
+      schedule99acresThankYouEmail(lead);
+    }
     return res.status(201).json(createdResponse(lead));
   } catch (err) {
     if (err instanceof UniqueConstraintError) {
