@@ -16,7 +16,7 @@ router.get("/me", authRequired, authController.me);
 router.get(
   "/assignees",
   authRequired,
-  requireAnyModuleAccess("capture_lead", "leads.assignto"),
+  requireAnyModuleAccess("capture_lead", "leads.assignto", "campaign.assignto"),
   authController.listAssignees,
 );
 router.get(

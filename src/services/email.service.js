@@ -34,6 +34,13 @@ function getDefaultFrom() {
   );
 }
 
+function getFromForProvider(provider) {
+  if (provider === 'smtp') {
+    return process.env.SMTP_FROM?.trim() || process.env.SMTP_USER?.trim() || getDefaultFrom();
+  }
+  return process.env.EMAIL_FROM?.trim() || process.env.RESEND_FROM?.trim() || 'onboarding@resend.dev';
+}
+
 function getTransporter() {
   if (!smtpConfigured()) return null;
   if (!cachedTransporter) {
@@ -87,11 +94,15 @@ async function sendViaSmtp({ from, to, subject, text, html }) {
 }
 
 async function deliverEmail({ to, subject, text, html }) {
-  const from = getDefaultFrom();
-
   if (isHostedRuntime()) {
     if (resendConfigured()) {
-      return sendViaResend({ from, to, subject, text, html });
+      return sendViaResend({
+        from: getFromForProvider('resend'),
+        to,
+        subject,
+        text,
+        html,
+      });
     }
     throw new Error(
       'Email on Render requires RESEND_API_KEY (Gmail SMTP ports 587/465 are blocked on Render). ' +
@@ -99,17 +110,29 @@ async function deliverEmail({ to, subject, text, html }) {
     );
   }
 
+  // Local dev: prefer SMTP so welcome/reset emails reach any address (Resend sandbox is owner-only).
+  if (smtpConfigured()) {
+    return sendViaSmtp({
+      from: getFromForProvider('smtp'),
+      to,
+      subject,
+      text,
+      html,
+    });
+  }
+
   if (resendConfigured()) {
-    return sendViaResend({ from, to, subject, text, html });
+    return sendViaResend({
+      from: getFromForProvider('resend'),
+      to,
+      subject,
+      text,
+      html,
+    });
   }
 
-  const transporter = getTransporter();
-  if (!transporter) {
-    console.log('[email] not configured — dev log only:', { to, subject });
-    return { devLogged: true };
-  }
-
-  return sendViaSmtp({ from, to, subject, text, html });
+  console.log('[email] not configured — dev log only:', { to, subject });
+  return { devLogged: true };
 }
 
 function escapeHtml(value) {

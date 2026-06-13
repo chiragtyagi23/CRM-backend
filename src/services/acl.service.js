@@ -133,13 +133,29 @@ async function listUsers() {
 }
 
 /** Active users — id + name only (assignee / lead-received-by dropdowns). */
-async function listActiveAssigneeNames() {
+async function listActiveAssigneeNames({ roleNames } = {}) {
+  const roles = Array.isArray(roleNames)
+    ? roleNames.map((r) => String(r).trim().toLowerCase()).filter(Boolean)
+    : [];
+
+  if (roles.length === 0) {
+    return sequelize.query(
+      `SELECT u.id, u.name
+       FROM crm_signup u
+       WHERE u.is_active IS DISTINCT FROM false
+       ORDER BY u.name ASC`,
+      { type: QueryTypes.SELECT },
+    );
+  }
+
   return sequelize.query(
     `SELECT u.id, u.name
      FROM crm_signup u
+     JOIN roles r ON r.id = u.role_id
      WHERE u.is_active IS DISTINCT FROM false
+       AND LOWER(r.name) IN (:roles)
      ORDER BY u.name ASC`,
-    { type: QueryTypes.SELECT },
+    { replacements: { roles }, type: QueryTypes.SELECT },
   );
 }
 
