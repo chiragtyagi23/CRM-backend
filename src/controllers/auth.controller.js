@@ -23,17 +23,24 @@ const me = asyncHandler(async (req, res) => {
 });
 
 /**
- * Minimal assignee list for capture-lead / lead-reassign dropdowns.
- * - leads.assignto: all active user names
+ * Minimal assignee list for capture-lead / lead-reassign / campaign-assign dropdowns.
+ * - leads.assignto or campaign.assignto: active user names (optional ?roles=admin,manager filter)
  * - capture_lead only: current user only (no full directory leak)
  */
 const listAssignees = asyncHandler(async (req, res) => {
   const userId = req.user?.sub;
   if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-  const canAssign = await aclService.userCanAccessModule(userId, MODULE_KEYS.leads.assignTo);
-  if (canAssign) {
-    const rows = await aclService.listActiveAssigneeNames();
+  const canAssignLeads = await aclService.userCanAccessModule(userId, MODULE_KEYS.leads.assignTo);
+  const canAssignCampaigns = await aclService.userCanAccessModule(userId, MODULE_KEYS.campaign.assignTo);
+  if (canAssignLeads || canAssignCampaigns) {
+    const rolesParam = String(req.query?.roles || '').trim();
+    const roleNames = rolesParam
+      ? rolesParam.split(',').map((r) => r.trim().toLowerCase()).filter(Boolean)
+      : undefined;
+    const rows = await aclService.listActiveAssigneeNames(
+      roleNames?.length ? { roleNames } : {},
+    );
     return res.json({
       items: rows.map((u) => ({
         id: u.id,

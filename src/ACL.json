@@ -9,7 +9,7 @@
     }
   },
   "routePolicies": [
-    { "method": "GET", "path": "/api/auth/assignees", "anyOf": ["capture_lead", "leads.assignto"] },
+    { "method": "GET", "path": "/api/auth/assignees", "anyOf": ["capture_lead", "leads.assignto", "campaign.assignto"] },
     { "method": "GET", "path": "/api/auth/users", "anyOf": ["profile.allUserTable"] },
 
     { "method": "GET", "path": "/api/campaigns", "anyOf": ["*"] },
