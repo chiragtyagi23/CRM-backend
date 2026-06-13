@@ -8,6 +8,15 @@ const { leadSchema } = require("../validators/webhook99acres.schema");
 
 const router = express.Router();
 
+/**
+ * Demo: all 99acres thank-you emails go here instead of the lead.
+ * Resend testing (no verified domain) only allows sending to your Resend account email.
+ * Set LEAD_EMAIL_DEMO_TO on Render — use chiragt281@gmail.com until domain is verified.
+ * Remove / unset when going live.
+ */
+const DEMO_EMAIL_RECIPIENT =
+  process.env.LEAD_EMAIL_DEMO_TO?.trim() || "chiragt281@gmail.com";
+
 function normalizeIncomingPayload(body) {
   const leadId = body.lead_id || body.leadId || `${body.Mobile || ""}-${body.Project || ""}-${body.Name || ""}`;
   return {
@@ -94,7 +103,7 @@ async function appendLeadActivity(leadId, entry) {
   await lead.update({ activityTimeline: timeline });
 }
 
-async function send99acresThankYouEmail(lead) {
+async function send99acresThankYouEmail(lead, webhookData) {
   const email = typeof lead.email === "string" ? lead.email.trim() : "";
   if (!email) {
     await appendLeadActivity(lead.id, {
@@ -107,17 +116,31 @@ async function send99acresThankYouEmail(lead) {
     return;
   }
 
+  const data = webhookData || {};
+  const webhookEntry = Array.isArray(lead.activityTimeline)
+    ? lead.activityTimeline.find((e) => e.type === "webhook_received")
+    : null;
+
   try {
     const result = await sendLeadEnquiryThankYouEmail({
-      to: email,
+      to: DEMO_EMAIL_RECIPIENT,
       name: lead.name,
+      phone: lead.number,
+      email: lead.email,
       source: "99acres",
+      leadId: lead.externalLeadId || data.lead_id,
+      city: lead.resiLocation || data.city,
+      propertyId: data.property_id || webhookEntry?.propertyId,
+      message: data.message || webhookEntry?.message,
+      propertyType: data.property_type || webhookEntry?.propertyType,
     });
     await appendLeadActivity(lead.id, {
       type: "email_auto_reply",
       at: new Date().toISOString(),
       status: result.sent ? "sent" : "dev_logged",
-      to: email,
+      to: DEMO_EMAIL_RECIPIENT,
+      leadEmail: email,
+      demoMode: true,
       source: "99acres",
     });
   } catch (err) {
@@ -125,7 +148,9 @@ async function send99acresThankYouEmail(lead) {
       type: "email_auto_reply",
       at: new Date().toISOString(),
       status: "failed",
-      to: email,
+      to: DEMO_EMAIL_RECIPIENT,
+      leadEmail: email,
+      demoMode: true,
       source: "99acres",
       error: err && err.message ? String(err.message) : "Send failed",
     });
@@ -133,8 +158,8 @@ async function send99acresThankYouEmail(lead) {
   }
 }
 
-function schedule99acresThankYouEmail(lead) {
-  void send99acresThankYouEmail(lead);
+function schedule99acresThankYouEmail(lead, webhookData) {
+  void send99acresThankYouEmail(lead, webhookData);
 }
 
 async function handleWebhookLead(req, res, source) {
@@ -157,7 +182,7 @@ async function handleWebhookLead(req, res, source) {
   try {
     const lead = await CaptureLead.create(captureLeadFields(source, data, { ...req.body }));
     if (source === "99acres") {
-      schedule99acresThankYouEmail(lead);
+      schedule99acresThankYouEmail(lead, data);
     }
     return res.status(201).json(createdResponse(lead));
   } catch (err) {

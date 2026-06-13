@@ -18,10 +18,23 @@ if (process.env.VERCEL) {
 }
 
 const isDev = env.nodeEnv !== "production";
+
+function normalizeOrigin(value) {
+  return String(value || "").trim().replace(/\/+$/, "");
+}
+
 const corsAllowList = String(env.corsOrigin)
   .split(",")
-  .map((s) => s.trim())
+  .map(normalizeOrigin)
   .filter(Boolean);
+
+function isAllowedCorsOrigin(origin) {
+  if (!origin) return true;
+  const normalized = normalizeOrigin(origin);
+  return corsAllowList.some(
+    (allowed) => allowed === normalized || allowed === origin,
+  );
+}
 
 app.use(
   helmet({
@@ -30,12 +43,14 @@ app.use(
 );
 app.use(
   cors({
-    // Dev: reflect request Origin so http://localhost:* and http://127.0.0.1:* both work (file uploads use preflight).
+    credentials: true,
+    // Dev: reflect request Origin so http://localhost:* and http://127.0.0.1:* both work.
     ...(isDev
-      ? { origin: true, credentials: true }
+      ? { origin: true }
       : {
-          origin: corsAllowList.length <= 1 ? corsAllowList[0] : corsAllowList,
-          credentials: true,
+          origin(origin, callback) {
+            callback(null, isAllowedCorsOrigin(origin));
+          },
         }),
   }),
 );

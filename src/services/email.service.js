@@ -1,5 +1,6 @@
 const nodemailer = require('nodemailer');
 const { getCrmLoginUrl } = require('../config/appUrls');
+const { toWhatsAppHref } = require('../lib/phone');
 
 let cachedTransporter = null;
 
@@ -119,6 +120,123 @@ function escapeHtml(value) {
     .replace(/"/g, '&quot;');
 }
 
+function getLeadWhatsAppNumber() {
+  return process.env.LEAD_WHATSAPP_NUMBER?.trim() || '7210789372';
+}
+
+function buildLeadEnquiryWhatsAppText({ name, phone, email, source, leadId, city, propertyId, message }) {
+  const lines = [
+    'Hello,',
+    '',
+    `I recently enquired on ${source || '99acres'} and would like to connect with your team.`,
+    '',
+    `Name: ${name || '—'}`,
+    `Phone: ${phone || '—'}`,
+  ];
+
+  if (email?.trim()) lines.push(`Email: ${email.trim()}`);
+  if (city?.trim()) lines.push(`City: ${city.trim()}`);
+  if (propertyId?.trim()) lines.push(`Project: ${propertyId.trim()}`);
+  if (message?.trim()) lines.push(`Enquiry: ${message.trim()}`);
+  if (leadId?.trim()) lines.push(`Reference: ${leadId.trim()}`);
+
+  lines.push('', 'Thank you.');
+  return lines.join('\n');
+}
+
+function buildLeadEnquiryEmailContent({
+  name,
+  phone,
+  email,
+  source = '99acres',
+  leadId,
+  city,
+  propertyId,
+  message,
+  propertyType,
+}) {
+  const brand = process.env.LEAD_EMAIL_BRAND_NAME || 'PropCRM';
+  const whatsappText = buildLeadEnquiryWhatsAppText({
+    name,
+    phone,
+    email,
+    source,
+    leadId,
+    city,
+    propertyId,
+    message,
+  });
+  const whatsappHref = toWhatsAppHref(getLeadWhatsAppNumber(), whatsappText);
+
+  const detailRows = [
+    ['Name', name],
+    ['Phone', phone],
+    ['Email', email],
+    ['City', city],
+    ['Project', propertyId],
+    ['Property type', propertyType],
+    ['Enquiry', message],
+    ['Reference ID', leadId],
+    ['Source', source],
+  ].filter(([, value]) => value != null && String(value).trim() !== '');
+
+  const textDetails = detailRows.map(([label, value]) => `${label}: ${value}`).join('\n');
+
+  const subject = propertyId?.trim()
+    ? `Thank you for your enquiry — ${propertyId.trim()}`
+    : 'Thank you for your enquiry';
+
+  const text = [
+    `Hi ${name},`,
+    '',
+    `Thank you for your enquiry on ${source}. Here are your details:`,
+    '',
+    textDetails,
+    '',
+    'Our team will contact you shortly.',
+    whatsappHref ? `\nChat with us on WhatsApp: ${whatsappHref}` : '',
+    '',
+    `— ${brand}`,
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  const tableRows = detailRows
+    .map(
+      ([label, value]) =>
+        `<tr><td style="padding:8px 12px;border-bottom:1px solid #eee;color:#666;">${escapeHtml(label)}</td>` +
+        `<td style="padding:8px 12px;border-bottom:1px solid #eee;color:#222;font-weight:500;">${escapeHtml(value)}</td></tr>`,
+    )
+    .join('');
+
+  const whatsappButton = whatsappHref
+    ? `<p style="margin:24px 0 8px;">
+        <a href="${escapeHtml(whatsappHref)}"
+           style="display:inline-block;background:#25D366;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600;">
+          Chat with us on WhatsApp
+        </a>
+      </p>
+      <p style="margin:0;font-size:13px;color:#666;">
+        Tap the button to open WhatsApp with your enquiry details pre-filled. Just hit send to reach our team.
+      </p>`
+    : '';
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:560px;color:#222;">
+      <p>Hi ${escapeHtml(name)},</p>
+      <p>Thank you for your enquiry on <strong>${escapeHtml(source)}</strong>. We have received the following details:</p>
+      <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin:16px 0;border:1px solid #eee;border-radius:8px;overflow:hidden;">
+        ${tableRows}
+      </table>
+      <p>Our team will contact you shortly.</p>
+      ${whatsappButton}
+      <p style="margin-top:24px;color:#666;">— ${escapeHtml(brand)}</p>
+    </div>
+  `;
+
+  return { subject, text, html, whatsappHref };
+}
+
 async function sendWelcomeUserEmail({ to, name, email, password, loginUrl }) {
   const subject = 'Your PropCRM account';
   const text = [
@@ -175,25 +293,29 @@ async function sendPasswordResetEmail({ to, name, resetUrl }) {
   return deliverEmail({ to, subject, text, html });
 }
 
-async function sendLeadEnquiryThankYouEmail({ to, name, source = '99acres' }) {
-  const brand = process.env.LEAD_EMAIL_BRAND_NAME || 'PropCRM';
-  const subject = 'Thank you for your enquiry';
-  const text = [
-    `Hi ${name},`,
-    '',
-    `Thanks for your enquiry on ${source}.`,
-    '',
-    'Our team will contact you shortly.',
-    '',
-    `— ${brand}`,
-  ].join('\n');
-
-  const html = `
-    <p>Hi ${escapeHtml(name)},</p>
-    <p>Thanks for your enquiry on <strong>${escapeHtml(source)}</strong>.</p>
-    <p>Our team will contact you shortly.</p>
-    <p>— ${escapeHtml(brand)}</p>
-  `;
+async function sendLeadEnquiryThankYouEmail({
+  to,
+  name,
+  phone,
+  email: leadEmail,
+  source = '99acres',
+  leadId,
+  city,
+  propertyId,
+  message,
+  propertyType,
+}) {
+  const { subject, text, html } = buildLeadEnquiryEmailContent({
+    name,
+    phone,
+    email: leadEmail,
+    source,
+    leadId,
+    city,
+    propertyId,
+    message,
+    propertyType,
+  });
 
   return deliverEmail({ to, subject, text, html });
 }
