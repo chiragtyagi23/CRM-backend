@@ -1,8 +1,7 @@
 const { asyncHandler } = require("../lib/asyncHandler");
 const { validateAllBulkRows } = require("../lib/bulkCaptureLeadsValidation");
 const { CaptureLead, CrmSignup, sequelize } = require("../models");
-const { userCanAccessModule } = require("../services/acl.service");
-const { MODULE_KEYS } = require("../acl/permissionMap");
+const { assertLeadAccessible, filterLeadsForUser } = require("../services/leadVisibility.service");
 
 function parseDateOrNull(input) {
   if (input === undefined || input === null) return null;
@@ -80,24 +79,8 @@ const getAll = asyncHandler(async (req, res) => {
   const campaignId = String(req.query.campaignId || "").trim();
   if (campaignId) where.campaignId = campaignId;
 
-  // If user cannot reassign leads, show only their assigned leads.
-  const canAssign = await userCanAccessModule(req.user.sub, MODULE_KEYS.leads.assignTo);
   const items = await CaptureLead.findAll({ where, order: [["created_at", "DESC"]] });
-  if (canAssign) return res.json({ items });
-
-  let currentUserName = String(req.user?.name || "").trim();
-  if (!currentUserName && req.user?.sub) {
-    const me = await CrmSignup.findByPk(req.user.sub);
-    currentUserName = String(me?.name || "").trim();
-  }
-
-  const norm = currentUserName.toLowerCase();
-  const visible = items.filter((lead) => {
-    const callBy = String(lead.callBy || "").trim().toLowerCase();
-    // Public enquiries (website/microsite) have no assignee — visible to all lead viewers.
-    if (!callBy) return true;
-    return Boolean(norm) && callBy === norm;
-  });
+  const visible = await filterLeadsForUser(items, req);
   res.json({ items: visible });
 });
 
@@ -105,6 +88,9 @@ const getById = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const lead = await CaptureLead.findByPk(id);
   if (!lead) return res.status(404).json({ error: "Capture lead not found" });
+  if (!(await assertLeadAccessible(lead, req))) {
+    return res.status(404).json({ error: "Capture lead not found" });
+  }
   res.json(lead);
 });
 
@@ -135,6 +121,9 @@ const patch = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const lead = await CaptureLead.findByPk(id);
   if (!lead) return res.status(404).json({ error: "Capture lead not found" });
+  if (!(await assertLeadAccessible(lead, req))) {
+    return res.status(404).json({ error: "Capture lead not found" });
+  }
 
   await lead.update(normalizePayload(req.body));
   res.json(lead);
@@ -144,6 +133,9 @@ const remove = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const lead = await CaptureLead.findByPk(id);
   if (!lead) return res.status(404).json({ error: "Capture lead not found" });
+  if (!(await assertLeadAccessible(lead, req))) {
+    return res.status(404).json({ error: "Capture lead not found" });
+  }
   await lead.destroy();
   res.status(204).end();
 });
