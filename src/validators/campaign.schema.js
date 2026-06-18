@@ -16,9 +16,9 @@ const CampaignCreateSchema = z.object({
   coverImage: NullableString,
   reg_no: NullableString,
   templateKey: z
-    .enum(["luxury-template", "affordable-template"])
+    .enum(["default-template", "luxury-template", "affordable-template"])
     .optional()
-    .default("luxury-template"),
+    .default("default-template"),
 });
 
 const CampaignPatchSchema = CampaignCreateSchema.partial().refine(

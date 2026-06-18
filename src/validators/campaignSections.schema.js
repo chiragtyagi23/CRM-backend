@@ -104,7 +104,7 @@ const AmenitiesSchema = z
     items: z
       .array(
         z.object({
-          icon: z.string().optional(),
+          icon: z.string().nullable().optional(),
           name: z.string().min(1),
           desc: z.string().optional(),
         }),
