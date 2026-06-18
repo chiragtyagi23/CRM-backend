@@ -8,6 +8,36 @@ const {
   updateCampaignAssignee,
 } = require("../services/campaign.service");
 
+function sanitizeCampaignFullBody(body) {
+  if (!body || typeof body !== "object") return body;
+  const next = { ...body };
+
+  if (next.master && typeof next.master === "object") {
+    const master = { ...next.master };
+    const title = typeof master.title === "string" ? master.title.trim() : "";
+    if (!title && master.templateKey === "default-template") {
+      master.title = "Untitled Project";
+    }
+    next.master = master;
+  }
+
+  if (next.amenities?.items && Array.isArray(next.amenities.items)) {
+    next.amenities = {
+      ...next.amenities,
+      items: next.amenities.items.map((item) => {
+        if (!item || typeof item !== "object") return item;
+        if (item.icon === null) {
+          const { icon: _icon, ...rest } = item;
+          return rest;
+        }
+        return item;
+      }),
+    };
+  }
+
+  return next;
+}
+
 const getAll = asyncHandler(async (_req, res) => {
   const items = await listCampaigns();
   res.json({ items });
@@ -21,7 +51,7 @@ const getById = asyncHandler(async (req, res) => {
 });
 
 const createFull = asyncHandler(async (req, res) => {
-  const parsed = CampaignFullCreateSchema.safeParse(req.body);
+  const parsed = CampaignFullCreateSchema.safeParse(sanitizeCampaignFullBody(req.body));
 
   if (!parsed.success) {
     return res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
@@ -33,7 +63,7 @@ const createFull = asyncHandler(async (req, res) => {
 
 const updateFull = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const parsed = CampaignFullCreateSchema.safeParse(req.body);
+  const parsed = CampaignFullCreateSchema.safeParse(sanitizeCampaignFullBody(req.body));
 
   if (!parsed.success) {
     return res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
