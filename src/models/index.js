@@ -123,7 +123,7 @@ const CampaignHeroData = sequelize.define(
   "CampaignHeroData",
   {
     id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
-    campaignId: { type: DataTypes.UUID, allowNull: false, unique: true, field: "campaign_id" },
+    campaignId: { type: DataTypes.UUID, allowNull: false, field: "campaign_id" },
     data: { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
   },
   {
@@ -131,6 +131,7 @@ const CampaignHeroData = sequelize.define(
     timestamps: true,
     createdAt: "created_at",
     updatedAt: "updated_at",
+    indexes: [{ unique: true, fields: ["campaign_id"], name: "campaign_hero_data_campaign_id_unique" }],
   }
 );
 
@@ -138,7 +139,7 @@ const CampaignProjectOverview = sequelize.define(
   "CampaignProjectOverview",
   {
     id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
-    campaignId: { type: DataTypes.UUID, allowNull: false, unique: true, field: "campaign_id" },
+    campaignId: { type: DataTypes.UUID, allowNull: false, field: "campaign_id" },
     sectionLabel: { type: DataTypes.TEXT, field: "section_label" },
     titleBefore: { type: DataTypes.TEXT, field: "title_before" },
     titleItalic: { type: DataTypes.TEXT, field: "title_italic" },
@@ -153,6 +154,7 @@ const CampaignProjectOverview = sequelize.define(
     timestamps: true,
     createdAt: "created_at",
     updatedAt: "updated_at",
+    indexes: [{ unique: true, fields: ["campaign_id"], name: "campaign_project_overview_campaign_id_unique" }],
   }
 );
 
@@ -179,7 +181,7 @@ const CampaignSizeFloor = sequelize.define(
   "CampaignSizeFloor",
   {
     id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
-    campaignId: { type: DataTypes.UUID, allowNull: false, unique: true, field: "campaign_id" },
+    campaignId: { type: DataTypes.UUID, allowNull: false, field: "campaign_id" },
     sectionLabel: { type: DataTypes.TEXT, field: "section_label" },
     titleBefore: { type: DataTypes.TEXT, field: "title_before" },
     titleItalic: { type: DataTypes.TEXT, field: "title_italic" },
@@ -194,6 +196,7 @@ const CampaignSizeFloor = sequelize.define(
     timestamps: true,
     createdAt: "created_at",
     updatedAt: "updated_at",
+    indexes: [{ unique: true, fields: ["campaign_id"], name: "campaign_size_floor_campaign_id_unique" }],
   }
 );
 
@@ -271,7 +274,7 @@ const CampaignProjectBenefits = sequelize.define(
   "CampaignProjectBenefits",
   {
     id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
-    campaignId: { type: DataTypes.UUID, allowNull: false, unique: true, field: "campaign_id" },
+    campaignId: { type: DataTypes.UUID, allowNull: false, field: "campaign_id" },
     sectionLabel: { type: DataTypes.TEXT, field: "section_label" },
     titleBefore: { type: DataTypes.TEXT, field: "title_before" },
     titleItalic: { type: DataTypes.TEXT, field: "title_italic" },
@@ -282,6 +285,7 @@ const CampaignProjectBenefits = sequelize.define(
   },
   {
     tableName: "campaign_project_benefits",
+    indexes: [{ unique: true, fields: ["campaign_id"], name: "campaign_project_benefits_campaign_id_unique" }],
     timestamps: true,
     createdAt: "created_at",
     updatedAt: "updated_at",
@@ -358,7 +362,7 @@ const AcresWebhookLead = sequelize.define(
   "AcresWebhookLead",
   {
     id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
-    leadId: { type: DataTypes.TEXT, allowNull: false, unique: true, field: "lead_id" },
+    leadId: { type: DataTypes.TEXT, allowNull: false, field: "lead_id" },
     propertyId: { type: DataTypes.TEXT, allowNull: true, field: "property_id" },
     name: { type: DataTypes.TEXT, allowNull: false },
     phone: { type: DataTypes.TEXT, allowNull: false },
@@ -374,6 +378,7 @@ const AcresWebhookLead = sequelize.define(
     timestamps: true,
     createdAt: "created_at",
     updatedAt: "updated_at",
+    indexes: [{ unique: true, fields: ["lead_id"], name: "acres_webhook_leads_lead_id_unique" }],
   },
 );
 
@@ -404,7 +409,7 @@ const Role = sequelize.define(
   "Role",
   {
     id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
-    name: { type: DataTypes.TEXT, allowNull: false, unique: true },
+    name: { type: DataTypes.TEXT, allowNull: false },
     description: { type: DataTypes.TEXT, allowNull: true },
   },
   {
@@ -412,6 +417,7 @@ const Role = sequelize.define(
     timestamps: true,
     createdAt: "created_at",
     updatedAt: "updated_at",
+    indexes: [{ unique: true, fields: ["name"], name: "roles_name_unique" }],
   },
 );
 
@@ -419,7 +425,7 @@ const Module = sequelize.define(
   "Module",
   {
     id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
-    moduleKey: { type: DataTypes.TEXT, allowNull: false, unique: true, field: "module_key" },
+    moduleKey: { type: DataTypes.TEXT, allowNull: false, field: "module_key" },
     name: { type: DataTypes.TEXT, allowNull: false },
     route: { type: DataTypes.TEXT, allowNull: false },
     icon: { type: DataTypes.TEXT, allowNull: true },
@@ -437,7 +443,10 @@ const Module = sequelize.define(
     timestamps: true,
     createdAt: "created_at",
     updatedAt: "updated_at",
-    indexes: [{ fields: ["parent_id", "sort_order"] }],
+    indexes: [
+      { unique: true, fields: ["module_key"], name: "modules_module_key_unique" },
+      { fields: ["parent_id", "sort_order"] },
+    ],
   },
 );
 
@@ -501,7 +510,7 @@ const CrmSignup = sequelize.define(
   {
     id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
     name: { type: DataTypes.TEXT, allowNull: false },
-    email: { type: DataTypes.TEXT, allowNull: false, unique: true },
+    email: { type: DataTypes.TEXT, allowNull: false },
     passwordHash: { type: DataTypes.TEXT, allowNull: false, field: "password_hash" },
     roleId: {
       type: DataTypes.UUID,
@@ -516,7 +525,11 @@ const CrmSignup = sequelize.define(
     timestamps: true,
     createdAt: "created_at",
     updatedAt: "updated_at",
-    indexes: [{ fields: ["role_id"] }, { fields: ["is_active"] }],
+    indexes: [
+      { unique: true, fields: ["email"], name: "crm_signup_email_unique" },
+      { fields: ["role_id"] },
+      { fields: ["is_active"] },
+    ],
   },
 );
 
@@ -530,7 +543,7 @@ const PasswordResetToken = sequelize.define(
       field: "user_id",
       references: { model: "crm_signup", key: "id" },
     },
-    tokenHash: { type: DataTypes.TEXT, allowNull: false, unique: true, field: "token_hash" },
+    tokenHash: { type: DataTypes.TEXT, allowNull: false, field: "token_hash" },
     expiresAt: { type: DataTypes.DATE, allowNull: false, field: "expires_at" },
   },
   {
@@ -538,7 +551,11 @@ const PasswordResetToken = sequelize.define(
     timestamps: true,
     createdAt: "created_at",
     updatedAt: false,
-    indexes: [{ fields: ["user_id"] }, { fields: ["expires_at"] }],
+    indexes: [
+      { unique: true, fields: ["token_hash"], name: "password_reset_tokens_token_hash_unique" },
+      { fields: ["user_id"] },
+      { fields: ["expires_at"] },
+    ],
   },
 );
 
