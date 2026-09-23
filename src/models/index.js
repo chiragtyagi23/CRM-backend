@@ -348,6 +348,11 @@ const CaptureLead = sequelize.define(
     updatedAt: "updated_at",
     indexes: [
       { fields: ["campaign_id"], name: "capture_leads_campaign_id_idx" },
+      { fields: ["created_at"], name: "capture_leads_created_at_idx" },
+      { fields: ["call_by"], name: "capture_leads_call_by_idx" },
+      { fields: ["status"], name: "capture_leads_status_idx" },
+      { fields: ["lead_score"], name: "capture_leads_lead_score_idx" },
+      { fields: ["source"], name: "capture_leads_source_idx" },
       {
         unique: true,
         fields: ["source", "external_lead_id"],
