@@ -1,7 +1,7 @@
 const { asyncHandler } = require("../lib/asyncHandler");
 const { validateAllBulkRows } = require("../lib/bulkCaptureLeadsValidation");
 const { CaptureLead, CrmSignup, sequelize } = require("../models");
-const { assertLeadAccessible, filterLeadsForUser } = require("../services/leadVisibility.service");
+const { assertLeadAccessible, findVisibleLeadsForUser } = require("../services/leadVisibility.service");
 
 function parseDateOrNull(input) {
   if (input === undefined || input === null) return null;
@@ -75,13 +75,28 @@ function normalizePayload(body) {
 }
 
 const getAll = asyncHandler(async (req, res) => {
-  const where = {};
-  const campaignId = String(req.query.campaignId || "").trim();
-  if (campaignId) where.campaignId = campaignId;
+  const campaignId = String(req.query.campaignId || "").trim() || undefined;
+  const q = String(req.query.q || "").trim() || undefined;
+  const status = String(req.query.status || "").trim() || undefined;
+  const score = String(req.query.score || "").trim() || undefined;
+  const source = String(req.query.source || "").trim() || undefined;
 
-  const items = await CaptureLead.findAll({ where, order: [["created_at", "DESC"]] });
-  const visible = await filterLeadsForUser(items, req);
-  res.json({ items: visible });
+  const pageRaw = req.query.page;
+  const pageSizeRaw = req.query.pageSize ?? req.query.limit;
+  const page = pageRaw != null && String(pageRaw).trim() !== "" ? Number(pageRaw) : undefined;
+  const pageSize =
+    pageSizeRaw != null && String(pageSizeRaw).trim() !== "" ? Number(pageSizeRaw) : undefined;
+
+  const result = await findVisibleLeadsForUser(req, {
+    campaignId,
+    q,
+    status,
+    score,
+    source,
+    page,
+    pageSize,
+  });
+  res.json(result);
 });
 
 const getById = asyncHandler(async (req, res) => {
